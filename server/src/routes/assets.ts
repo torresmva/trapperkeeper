@@ -76,7 +76,7 @@ router.post('/attach', upload.single('file'), async (req: Request, res: Response
 
   const audioUrl = `/api/assets/files/${filename}`;
   const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  const audioLine = `\n\n**recording** _${timestamp}_ — [${filename}](${audioUrl})`;
+  const audioLine = `\n\n**recording** _${timestamp}_\n<audio controls src="${audioUrl}"></audio>`;
 
   const updatedBody = entry.body + audioLine;
   entry.meta.modified = new Date().toISOString();

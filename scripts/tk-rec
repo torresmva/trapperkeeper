@@ -24,6 +24,17 @@
 set -euo pipefail
 
 TK_HOST="${TK_HOST:-http://localhost:3001}"
+
+# auto-detect TK_HOST from URL argument if provided
+_detect_host() {
+  local input="${1:-}"
+  if [[ "$input" =~ ^(https?://[^/]+) ]]; then
+    TK_HOST="${BASH_REMATCH[1]}"
+  fi
+}
+_detect_host "${1:-}"
+# for upload subcommand, detect from the 3rd arg (the URL)
+[ "${1:-}" = "upload" ] && _detect_host "${3:-}"
 REC_DIR="${HOME}/recordings"
 mkdir -p "$REC_DIR"
 
@@ -68,7 +79,7 @@ upload_to_note() {
   local entry_id="$2"
 
   echo -e "${DIM}uploading to ${entry_id}...${NC}"
-  response=$(curl -s -w "\n%{http_code}" \
+  response=$(curl -sk -w "\n%{http_code}" \
     -F "file=@${file}" \
     -F "entryId=${entry_id}" \
     "${TK_HOST}/api/assets/attach")
@@ -101,29 +112,56 @@ if [ -n "${1:-}" ]; then
   NOTE_ID="$(parse_entry_id "$1")"
 fi
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-OUTFILE="${REC_DIR}/meeting-${TIMESTAMP}.wav"
+OUTFILE="${REC_DIR}/meeting-${TIMESTAMP}.ogg"
 
 banner
 echo ""
 
-# check blackhole
-if ! ffmpeg -f avfoundation -list_devices true -i "" 2>&1 | grep -q "BlackHole"; then
+# check blackhole — cache device list, case-insensitive match
+DEVICE_LIST=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 || true)
+if ! echo "$DEVICE_LIST" | grep -iq "blackhole"; then
   echo -e "${RED}BlackHole not found.${NC}"
   echo -e "${DIM}install: brew install blackhole-2ch${NC}"
   echo -e "${DIM}then set up multi-output device in Audio MIDI Setup${NC}"
+  echo ""
+  echo -e "${DIM}detected audio devices:${NC}"
+  echo "$DEVICE_LIST" | grep -E "^\[" | head -20
   exit 1
 fi
 
-# find blackhole device index
-BH_INDEX=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 | \
-  grep -i "blackhole" | grep -oE '\[([0-9]+)\]' | head -1 | tr -d '[]')
+# find blackhole device index — match only the device index bracket, not the hex address
+BH_INDEX=$(echo "$DEVICE_LIST" | \
+  grep -i "blackhole" | sed -E 's/.*\] \[([0-9]+)\].*/\1/' | head -1)
 
 if [ -z "$BH_INDEX" ]; then
   echo -e "${RED}could not find BlackHole device index${NC}"
   exit 1
 fi
 
-echo -e "  ${DIM}device:${NC} BlackHole 2ch [${BH_INDEX}]"
+# list available mic devices (exclude BlackHole — that's system audio)
+AUDIO_DEVICES=$(echo "$DEVICE_LIST" | awk '/AVFoundation audio devices:/,0' | grep -i "\[.*\].*\[" | grep -iv "blackhole")
+
+if [ -n "${TK_MIC:-}" ]; then
+  # env override — skip picker
+  MIC_INDEX="$TK_MIC"
+else
+  # show picker
+  echo -e "  ${DIM}available microphones:${NC}"
+  echo "$AUDIO_DEVICES" | while IFS= read -r line; do
+    idx=$(echo "$line" | sed -E 's/.*\] \[([0-9]+)\].*/\1/')
+    name=$(echo "$line" | sed -E 's/.*\] \[[0-9]+\] //')
+    echo -e "    ${CYAN}${idx}${NC}  ${name}"
+  done
+  echo ""
+  printf "  select mic [1]: "
+  read -r MIC_CHOICE
+  MIC_INDEX="${MIC_CHOICE:-1}"
+fi
+
+MIC_NAME=$(echo "$AUDIO_DEVICES" | grep "\[${MIC_INDEX}\]" | sed -E 's/.*\] \[[0-9]+\] //')
+
+echo -e "  ${DIM}system:${NC} BlackHole 2ch [:${BH_INDEX}]"
+echo -e "  ${DIM}mic:${NC}    ${MIC_NAME:-device} [:${MIC_INDEX}]"
 echo -e "  ${DIM}output:${NC} ${OUTFILE}"
 if [ -n "$NOTE_ID" ]; then
   echo -e "  ${DIM}attach:${NC} ${NOTE_ID}"
@@ -132,9 +170,16 @@ echo ""
 echo -e "  ${PINK}recording...${NC} press ${CYAN}Ctrl+C${NC} to stop"
 echo ""
 
-# record — trap ctrl+c for clean shutdown
+# record — capture both system audio (BlackHole) and mic, mix into one stream
 trap '' INT
-ffmpeg -y -f avfoundation -i ":${BH_INDEX}" -ac 2 -ar 44100 "$OUTFILE" 2>/dev/null &
+ffmpeg -y \
+  -f avfoundation -i ":${BH_INDEX}" \
+  -f avfoundation -i ":${MIC_INDEX}" \
+  -filter_complex "\
+    [0:a]volume=0.4[sys];\
+    [1:a]volume=0.3[mic];\
+    [sys][mic]amix=inputs=2:duration=longest:normalize=0[out]" \
+  -map "[out]" -ac 1 -ar 48000 -c:a libopus -b:a 64k "$OUTFILE" 2>"${REC_DIR}/ffmpeg.log" &
 FFMPEG_PID=$!
 
 # wait for ctrl+c

@@ -208,6 +208,16 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 0;
   border: 1px solid var(--border);
 }
+.markdown-preview audio {
+  width: 100%;
+  max-width: 480px;
+  display: block;
+  margin: 8px 0 16px;
+  filter: grayscale(1) brightness(0.8);
+}
+.markdown-preview audio::-webkit-media-controls-panel {
+  background: var(--surface, #111);
+}
 .markdown-preview table {
   width: 100%;
   border-collapse: collapse;
