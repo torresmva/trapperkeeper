@@ -45,6 +45,13 @@ export function MarkdownRenderer({ content }: Props) {
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[rehypeHighlight, rehypeRaw, rehypeKatex]}
       components={{
+        a({ href, children, ...props }) {
+          const audioExts = /\.(ogg|mp3|wav|webm|m4a)$/i;
+          if (href && audioExts.test(href)) {
+            return <audio controls src={href} />;
+          }
+          return <a href={href} {...props}>{children}</a>;
+        },
         p({ children, ...props }) {
           const processed = processWikiLinks(children);
           return <p {...props}>{processed}</p>;
