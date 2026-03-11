@@ -16,8 +16,9 @@ const navItems = [
   { to: '/entries', label: 'entries', shortcut: '2' },
   { to: '/collections', label: 'collections', shortcut: '3' },
   { to: '/timeline', label: 'timeline', shortcut: '4' },
-  { to: '/search', label: 'search', shortcut: '5' },
-  { to: '/exports', label: 'export', shortcut: '6' },
+  { to: '/tasks', label: 'tasks', shortcut: '5' },
+  { to: '/search', label: 'search', shortcut: '6' },
+  { to: '/exports', label: 'export', shortcut: '7' },
 ];
 
 export function Sidebar() {

@@ -13,6 +13,7 @@ import { StatsPage } from './components/stats/StatsPage';
 import { CollectionsPage } from './components/collections/CollectionsPage';
 import { TimelinePage } from './components/timeline/TimelinePage';
 import { WeeklyDigestPage } from './components/digest/WeeklyDigestPage';
+import { TaskBoard } from './components/tasks/TaskBoard';
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
 
 export default function App() {
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/digest" element={<WeeklyDigestPage />} />
+          <Route path="/tasks" element={<TaskBoard />} />
           <Route path="/exports" element={<ExportPage />} />
         </Route>
       </Routes>

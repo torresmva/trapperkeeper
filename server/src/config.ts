@@ -9,4 +9,5 @@ export const config = {
   notesDir: path.join(ROOT, 'data', 'notes'),
   templatesDir: path.join(ROOT, 'data', 'templates'),
   assetsDir: path.join(ROOT, 'data', 'assets'),
+  tasksFile: path.join(ROOT, 'data', 'tasks.json'),
 };

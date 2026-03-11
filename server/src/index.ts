@@ -19,6 +19,7 @@ import collectionsRouter from './routes/collections';
 import digestRouter from './routes/digest';
 import historyRouter from './routes/history';
 import importRouter from './routes/import';
+import tasksRouter from './routes/tasks';
 
 async function ensureDataDirs() {
   const dirs = [config.journalDir, config.notesDir, config.templatesDir, config.assetsDir];
@@ -49,6 +50,7 @@ async function main() {
   app.use('/api/digest', digestRouter);
   app.use('/api/history', historyRouter);
   app.use('/api/import', importRouter);
+  app.use('/api/tasks', tasksRouter);
 
   // Serve client in production
   const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');

@@ -51,6 +51,16 @@ export interface ActivityDay {
   count: number;
 }
 
+export interface Task {
+  id: string;
+  title: string;
+  deadline?: string;
+  priority: 'low' | 'normal' | 'high';
+  status: 'active' | 'completed' | 'archived';
+  created: string;
+  completed?: string;
+}
+
 export interface Stats {
   totalEntries: number;
   totalJournal: number;

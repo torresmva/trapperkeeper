@@ -1,4 +1,4 @@
-import { Entry, EntryMeta, TagCount, CollectionInfo, Stats } from '../types';
+import { Entry, EntryMeta, TagCount, CollectionInfo, Stats, Task } from '../types';
 
 const BASE = '/api';
 
@@ -113,6 +113,24 @@ export const api = {
     if (!res.ok) throw new Error('Upload failed');
     return res.json();
   },
+
+  // Tasks
+  listTasks: (status?: string) => {
+    const qs = status ? `?status=${status}` : '';
+    return request<Task[]>(`/tasks${qs}`);
+  },
+  createTask: (data: { title: string; deadline?: string; priority?: string }) =>
+    request<Task>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+  updateTask: (id: string, data: Partial<Task>) =>
+    request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  completeTask: (id: string) =>
+    request<Task>(`/tasks/${id}/complete`, { method: 'PATCH' }),
+  archiveTask: (id: string) =>
+    request<Task>(`/tasks/${id}/archive`, { method: 'PATCH' }),
+  reopenTask: (id: string) =>
+    request<Task>(`/tasks/${id}/reopen`, { method: 'PATCH' }),
+  deleteTask: (id: string) =>
+    request<{ success: boolean }>(`/tasks/${id}`, { method: 'DELETE' }),
 
   // Exports
   exportEntries: async (options: {

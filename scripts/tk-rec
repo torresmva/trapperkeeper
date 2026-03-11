@@ -1,0 +1,136 @@
+#!/bin/bash
+# tk-rec — record system audio and attach to a trapperkeeper note
+#
+# prerequisites:
+#   brew install blackhole-2ch ffmpeg
+#   then set up multi-output device in Audio MIDI Setup (one-time):
+#     1. open Audio MIDI Setup
+#     2. click + → Create Multi-Output Device
+#     3. check your speakers/headphones AND BlackHole 2ch
+#     4. set Multi-Output Device as system output
+#
+# usage:
+#   tk-rec <note-id>           record and attach to note when done
+#   tk-rec                     record only, print file path
+#   tk-rec upload <file> <id>  upload existing file to note
+#
+# examples:
+#   tk-rec notes/meeting-standup-1710234567.md
+#   tk-rec journal/2026/03/2026-03-11.md
+#   tk-rec upload ~/recordings/meeting.wav notes/my-note.md
+
+set -euo pipefail
+
+TK_HOST="${TK_HOST:-http://localhost:3001}"
+REC_DIR="${HOME}/recordings"
+mkdir -p "$REC_DIR"
+
+# colors
+CYAN='\033[0;36m'
+PINK='\033[0;35m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+DIM='\033[2m'
+NC='\033[0m'
+
+banner() {
+  echo -e "${CYAN}┌─────────────────────────────┐${NC}"
+  echo -e "${CYAN}│${NC}  tk-rec ${DIM}// trapperkeeper${NC}    ${CYAN}│${NC}"
+  echo -e "${CYAN}└─────────────────────────────┘${NC}"
+}
+
+upload_to_note() {
+  local file="$1"
+  local entry_id="$2"
+
+  echo -e "${DIM}uploading to ${entry_id}...${NC}"
+  response=$(curl -s -w "\n%{http_code}" \
+    -F "file=@${file}" \
+    -F "entryId=${entry_id}" \
+    "${TK_HOST}/api/assets/attach")
+
+  http_code=$(echo "$response" | tail -1)
+  body=$(echo "$response" | sed '$d')
+
+  if [ "$http_code" = "200" ]; then
+    echo -e "${GREEN}attached${NC} → ${body}" | grep -o '"url":"[^"]*"' | head -1
+    echo -e "${GREEN}done.${NC} recording linked in note."
+  else
+    echo -e "${RED}upload failed${NC} (HTTP ${http_code})"
+    echo "$body"
+    return 1
+  fi
+}
+
+# handle upload subcommand
+if [ "${1:-}" = "upload" ]; then
+  if [ $# -lt 3 ]; then
+    echo "usage: tk-rec upload <file> <note-id>"
+    exit 1
+  fi
+  upload_to_note "$2" "$3"
+  exit 0
+fi
+
+NOTE_ID="${1:-}"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+OUTFILE="${REC_DIR}/meeting-${TIMESTAMP}.wav"
+
+banner
+echo ""
+
+# check blackhole
+if ! ffmpeg -f avfoundation -list_devices true -i "" 2>&1 | grep -q "BlackHole"; then
+  echo -e "${RED}BlackHole not found.${NC}"
+  echo -e "${DIM}install: brew install blackhole-2ch${NC}"
+  echo -e "${DIM}then set up multi-output device in Audio MIDI Setup${NC}"
+  exit 1
+fi
+
+# find blackhole device index
+BH_INDEX=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 | \
+  grep -i "blackhole" | grep -oE '\[([0-9]+)\]' | head -1 | tr -d '[]')
+
+if [ -z "$BH_INDEX" ]; then
+  echo -e "${RED}could not find BlackHole device index${NC}"
+  exit 1
+fi
+
+echo -e "  ${DIM}device:${NC} BlackHole 2ch [${BH_INDEX}]"
+echo -e "  ${DIM}output:${NC} ${OUTFILE}"
+if [ -n "$NOTE_ID" ]; then
+  echo -e "  ${DIM}attach:${NC} ${NOTE_ID}"
+fi
+echo ""
+echo -e "  ${PINK}recording...${NC} press ${CYAN}Ctrl+C${NC} to stop"
+echo ""
+
+# record — trap ctrl+c for clean shutdown
+trap '' INT
+ffmpeg -y -f avfoundation -i ":${BH_INDEX}" -ac 2 -ar 44100 "$OUTFILE" 2>/dev/null &
+FFMPEG_PID=$!
+
+# wait for ctrl+c
+wait $FFMPEG_PID 2>/dev/null || true
+trap - INT
+
+echo ""
+
+# check file exists and has content
+if [ ! -f "$OUTFILE" ] || [ ! -s "$OUTFILE" ]; then
+  echo -e "${RED}no audio captured${NC}"
+  exit 1
+fi
+
+SIZE=$(du -h "$OUTFILE" | cut -f1)
+echo -e "  ${GREEN}saved${NC} ${OUTFILE} (${SIZE})"
+
+# upload if note ID provided
+if [ -n "$NOTE_ID" ]; then
+  echo ""
+  upload_to_note "$OUTFILE" "$NOTE_ID"
+else
+  echo ""
+  echo -e "  ${DIM}to attach later:${NC}"
+  echo -e "  tk-rec upload ${OUTFILE} <note-id>"
+fi
