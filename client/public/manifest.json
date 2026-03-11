@@ -1,0 +1,16 @@
+{
+  "name": "TrapperKeeper",
+  "short_name": "TK",
+  "description": "Personal work journal & impact log",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#22d3ee",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

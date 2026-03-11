@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  trapperkeeper:
+    build: .
+    container_name: trapperkeeper
+    ports:
+      - "3001:3001"
+      - "3443:3443"
+    volumes:
+      - trapperkeeper-data:/app/data
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - SSL_PORT=3443
+
+volumes:
+  trapperkeeper-data:
+    driver: local
+    # For fileserver deployment, change to a bind mount:
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /path/to/your/persistent/storage/trapperkeeper

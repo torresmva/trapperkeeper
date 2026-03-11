@@ -1,0 +1,72 @@
+.cm-editor {
+  height: 100%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.cm-editor .cm-content {
+  padding: 20px 0;
+  caret-color: var(--accent-primary);
+}
+
+.cm-editor .cm-line {
+  padding: 0 20px;
+}
+
+.cm-editor .cm-gutters {
+  background: transparent;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  min-width: 40px;
+}
+
+.cm-editor .cm-activeLineGutter {
+  background: transparent;
+  color: var(--accent-primary);
+}
+
+.cm-editor .cm-activeLine {
+  background: var(--accent-primary-dim);
+}
+
+.cm-editor .cm-cursor {
+  border-left-color: var(--accent-primary);
+  border-left-width: 2px;
+}
+
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-selectionBackground {
+  background: rgba(34, 211, 238, 0.12) !important;
+}
+
+.cm-editor .cm-matchingBracket {
+  background: var(--accent-tertiary-dim);
+  color: var(--accent-tertiary) !important;
+  outline: 1px solid var(--accent-tertiary);
+}
+
+.cm-editor .cm-searchMatch {
+  background: var(--accent-tertiary-dim);
+  outline: 1px solid var(--accent-tertiary);
+}
+
+.cm-editor .cm-foldGutter span {
+  color: var(--text-muted);
+}
+
+.cm-editor:focus-within {
+  outline: none;
+}
+
+/* Markdown syntax — make structure visible */
+.cm-editor .cm-header-1 { font-size: 1.3em; font-weight: 600; color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; }
+.cm-editor .cm-header-2 { font-size: 1.1em; font-weight: 600; color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; }
+.cm-editor .cm-header-3 { font-size: 1em; font-weight: 500; color: var(--accent-primary); }
+.cm-editor .cm-strong { font-weight: 600; color: var(--text-primary); }
+.cm-editor .cm-emphasis { font-style: italic; }
+.cm-editor .cm-strikethrough { text-decoration: line-through; color: var(--text-muted); }
+.cm-editor .cm-link { color: var(--accent-primary); text-decoration: underline; }
+.cm-editor .cm-url { color: var(--text-muted); font-size: 0.9em; }
+.cm-editor .cm-quote { color: var(--text-secondary); font-style: italic; }

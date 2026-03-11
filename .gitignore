@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+data/journal/
+data/notes/
+data/assets/
+data/.certs/
