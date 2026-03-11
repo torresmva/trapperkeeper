@@ -287,12 +287,10 @@ export function EntryEditor() {
           del
         </button>
 
-        {(entry.meta.type === 'meeting' || entry.meta.type === '1on1') && (
-          <AudioRecorder onRecordingComplete={(url) => {
-            const audioTag = `\n\n<audio controls src="${url}"></audio>\n`;
-            handleBodyChange(body + audioTag);
-          }} />
-        )}
+        <AudioRecorder onRecordingComplete={(url) => {
+          const audioTag = `\n\n<audio controls src="${url}"></audio>\n`;
+          handleBodyChange(body + audioTag);
+        }} />
       </div>
 
       {archived && (

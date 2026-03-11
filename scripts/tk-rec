@@ -10,14 +10,16 @@
 #     4. set Multi-Output Device as system output
 #
 # usage:
-#   tk-rec <note-id>           record and attach to note when done
+#   tk-rec <note-id-or-url>    record and attach to note when done
 #   tk-rec                     record only, print file path
 #   tk-rec upload <file> <id>  upload existing file to note
 #
-# examples:
-#   tk-rec notes/meeting-standup-1710234567.md
+# accepts full URLs or bare entry IDs:
+#   tk-rec https://192.168.0.181:3443/journal/journal/2026/03/2026-03-11.md
+#   tk-rec https://192.168.0.181:3443/notes/my-note-123456.md
 #   tk-rec journal/2026/03/2026-03-11.md
-#   tk-rec upload ~/recordings/meeting.wav notes/my-note.md
+#   tk-rec notes/my-note-123456.md
+#   tk-rec upload ~/recordings/meeting.wav https://192.168.0.181:3443/journal/...
 
 set -euo pipefail
 
@@ -32,6 +34,28 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 DIM='\033[2m'
 NC='\033[0m'
+
+# extract entry ID from URL or bare path
+# https://host:port/journal/journal/2026/03/2026-03-11.md → journal/2026/03/2026-03-11.md
+# https://host:port/notes/notes/my-note-123.md → notes/my-note-123.md
+parse_entry_id() {
+  local input="$1"
+  # strip URL prefix if present (everything up to and including the port/host)
+  local path="${input}"
+  if [[ "$input" =~ ^https?:// ]]; then
+    # remove scheme + host + port, leaving /journal/journal/... or /notes/notes/...
+    path=$(echo "$input" | sed -E 's|^https?://[^/]+||')
+  fi
+  # URL structure is /<category>/<filepath> where filepath starts with category again
+  # e.g. /journal/journal/2026/03/2026-03-11.md → journal/2026/03/2026-03-11.md
+  # e.g. /notes/notes/my-note.md → notes/my-note.md
+  # strip leading slash, then remove the first path segment (the route prefix)
+  path="${path#/}"
+  local route="${path%%/*}"
+  local rest="${path#*/}"
+  # the rest IS the entry ID (journal/2026/03/... or notes/my-note-...)
+  echo "$rest"
+}
 
 banner() {
   echo -e "${CYAN}┌─────────────────────────────┐${NC}"
@@ -65,14 +89,17 @@ upload_to_note() {
 # handle upload subcommand
 if [ "${1:-}" = "upload" ]; then
   if [ $# -lt 3 ]; then
-    echo "usage: tk-rec upload <file> <note-id>"
+    echo "usage: tk-rec upload <file> <note-id-or-url>"
     exit 1
   fi
-  upload_to_note "$2" "$3"
+  upload_to_note "$2" "$(parse_entry_id "$3")"
   exit 0
 fi
 
-NOTE_ID="${1:-}"
+NOTE_ID=""
+if [ -n "${1:-}" ]; then
+  NOTE_ID="$(parse_entry_id "$1")"
+fi
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 OUTFILE="${REC_DIR}/meeting-${TIMESTAMP}.wav"
 
