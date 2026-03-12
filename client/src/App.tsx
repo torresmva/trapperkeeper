@@ -11,9 +11,9 @@ import { SearchPage } from './components/search/SearchPage';
 import { ExportPage } from './components/exports/ExportPage';
 import { StatsPage } from './components/stats/StatsPage';
 import { CollectionsPage } from './components/collections/CollectionsPage';
-import { TimelinePage } from './components/timeline/TimelinePage';
-import { WeeklyDigestPage } from './components/digest/WeeklyDigestPage';
-import { TaskBoard } from './components/tasks/TaskBoard';
+import { KeeperPage } from './components/keeper/KeeperPage';
+import { WallPage } from './components/wall/WallPage';
+import { ConfessionalPage } from './components/confessional/ConfessionalPage';
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
 
 export default function App() {
@@ -68,12 +68,22 @@ export default function App() {
           <Route path="/notes/*" element={<EntryEditor />} />
           <Route path="/collections" element={<CollectionsPage />} />
           <Route path="/collections/:name" element={<CollectionsPage />} />
-          <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/stats" element={<StatsPage />} />
-          <Route path="/digest" element={<WeeklyDigestPage />} />
-          <Route path="/tasks" element={<TaskBoard />} />
+          <Route path="/keeper" element={<KeeperPage />} />
+          <Route path="/wall" element={<WallPage />} />
+          <Route path="/confessional" element={<ConfessionalPage />} />
           <Route path="/exports" element={<ExportPage />} />
+
+          {/* Redirects from old routes */}
+          <Route path="/timeline" element={<Navigate to="/entries?view=timeline" replace />} />
+          <Route path="/digest" element={<Navigate to="/entries?view=digest" replace />} />
+          <Route path="/tasks" element={<Navigate to="/keeper" replace />} />
+          <Route path="/receipts" element={<Navigate to="/keeper?tab=receipts" replace />} />
+          <Route path="/links" element={<Navigate to="/keeper?tab=links" replace />} />
+          <Route path="/promises" element={<Navigate to="/keeper?tab=promises" replace />} />
+          <Route path="/snippets" element={<Navigate to="/keeper?tab=snippets" replace />} />
+          <Route path="/runbooks" element={<Navigate to="/keeper?tab=runbooks" replace />} />
         </Route>
       </Routes>
       <QuickCapture open={quickCaptureOpen} onClose={() => setQuickCaptureOpen(false)} />

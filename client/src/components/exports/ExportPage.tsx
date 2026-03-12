@@ -1,18 +1,34 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { api } from '../../api/client';
+import { PixelTrophy, PixelCrown, PixelScroll, PixelRocket, PixelBorder } from '../shared/PixelArt';
 
 const formats = [
-  { value: 'resume-bullets', label: 'resume' },
-  { value: 'blog-draft', label: 'blog' },
-  { value: 'markdown-bundle', label: 'full' },
+  { value: 'brag-doc', label: 'brag doc', icon: <PixelTrophy size={14} color="var(--accent-tertiary)" />, desc: 'self-review / impact summary grouped by collection' },
+  { value: 'resume-bullets', label: 'resume', icon: <PixelCrown size={14} color="var(--accent-tertiary)" />, desc: 'bullet points extracted from journal entries' },
+  { value: 'blog-draft', label: 'blog', icon: <PixelScroll size={14} color="var(--accent-primary)" />, desc: 'full entries formatted as blog sections' },
+  { value: 'markdown-bundle', label: 'full', icon: <PixelRocket size={14} color="var(--accent-secondary)" />, desc: 'complete markdown export with metadata' },
+];
+
+const FLAVOR = [
+  "you didn't come this far to only come this far",
+  'the quiet things that no one ever knows — until review season',
+  'your work speaks for itself, but a brag doc speaks louder',
+  'show your work. you earned it.',
+  "me vs. the self-review form vs. impostor syndrome",
+  "i'm not gonna teach your man how to ship — oh wait, yes i am",
+  "you've come a long way, baby",
 ];
 
 export function ExportPage() {
-  const [format, setFormat] = useState('resume-bullets');
+  const [format, setFormat] = useState('brag-doc');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [preview, setPreview] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const flavor = useMemo(() => FLAVOR[Math.floor(Math.random() * FLAVOR.length)], []);
+  const activeFormat = formats.find(f => f.value === format)!;
 
   const handleExport = async () => {
     setLoading(true);
@@ -41,12 +57,14 @@ export function ExportPage() {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(preview);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div style={{ maxWidth: 640 }}>
       <div style={{
-        marginBottom: 32,
+        marginBottom: 24,
         borderBottom: '1px solid var(--border)',
         paddingBottom: 16,
       }}>
@@ -59,36 +77,72 @@ export function ExportPage() {
         }}>
           export
         </h1>
+        <div style={{
+          fontSize: '10px',
+          color: 'var(--text-muted)',
+          marginTop: 4,
+          fontStyle: 'italic',
+          opacity: 0.6,
+        }}>
+          {flavor}
+        </div>
       </div>
 
-      {/* Format selector */}
+      {/* Format selector — vertical cards */}
       <div style={{
-        display: 'flex',
-        gap: 0,
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 1,
         marginBottom: 24,
-        borderBottom: '1px solid var(--border)',
+        background: 'var(--border)',
+        border: '1px solid var(--border)',
       }}>
-        {formats.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setFormat(f.value)}
-            style={{
-              padding: '8px 16px',
-              fontSize: '12px',
-              background: 'transparent',
-              color: format === f.value ? 'var(--accent-primary)' : 'var(--text-muted)',
-              borderBottom: format === f.value ? '2px solid var(--accent-primary)' : '2px solid transparent',
-              marginBottom: -1,
-              textTransform: 'lowercase',
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
+        {formats.map(f => {
+          const isActive = format === f.value;
+          return (
+            <button
+              key={f.value}
+              onClick={() => setFormat(f.value)}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                padding: '12px',
+                background: isActive ? 'var(--bg-surface)' : 'var(--bg-primary)',
+                border: 'none',
+                borderLeft: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.15s',
+              }}
+            >
+              {f.icon}
+              <div>
+                <div style={{
+                  fontSize: '12px',
+                  color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  fontWeight: 600,
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  marginBottom: 2,
+                }}>
+                  {f.label}
+                </div>
+                <div style={{
+                  fontSize: '9px',
+                  color: 'var(--text-muted)',
+                  lineHeight: 1.4,
+                }}>
+                  {f.desc}
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
+      <PixelBorder />
 
       {/* Date range */}
-      <div style={{ display: 'flex', gap: 24, marginBottom: 24, alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 24, marginBottom: 24, marginTop: 24, alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
           <label style={{
             fontSize: '10px',
@@ -146,15 +200,16 @@ export function ExportPage() {
             <button
               onClick={handleCopy}
               style={{
-                color: 'var(--text-muted)',
+                color: copied ? 'var(--accent-green)' : 'var(--text-muted)',
                 fontSize: '10px',
                 padding: '2px 8px',
                 background: 'transparent',
-                border: '1px solid var(--border)',
+                border: `1px solid ${copied ? 'var(--accent-green)' : 'var(--border)'}`,
                 textTransform: 'none',
+                transition: 'all 0.15s',
               }}
             >
-              copy
+              {copied ? 'copied!' : 'copy'}
             </button>
             <button
               onClick={handleDownload}

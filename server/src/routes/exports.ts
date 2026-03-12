@@ -33,6 +33,70 @@ router.post('/', async (req: Request, res: Response) => {
         .join('\n\n---\n\n');
       break;
 
+    case 'brag-doc': {
+      // Group entries by collection, then extract accomplishments
+      const collectionMap = new Map<string, typeof entries>();
+      const uncategorized: typeof entries = [];
+
+      for (const e of entries) {
+        if (e.meta.category !== 'journal') continue;
+        if (e.meta.collections?.length) {
+          for (const c of e.meta.collections) {
+            if (!collectionMap.has(c)) collectionMap.set(c, []);
+            collectionMap.get(c)!.push(e);
+          }
+        } else {
+          uncategorized.push(e);
+        }
+      }
+
+      const dateRange = entries.length
+        ? `${entries[entries.length - 1].meta.date} — ${entries[0].meta.date}`
+        : 'n/a';
+
+      output = `# Self-Review / Brag Document\n`;
+      output += `**Period:** ${dateRange}\n`;
+      output += `**Generated:** ${new Date().toISOString().split('T')[0]}\n\n---\n\n`;
+
+      for (const [collection, collEntries] of collectionMap) {
+        output += `## ${collection.charAt(0).toUpperCase() + collection.slice(1)}\n\n`;
+        for (const e of collEntries) {
+          const bullets = e.body.split('\n').filter(l => l.trim().startsWith('-'));
+          if (bullets.length) {
+            output += `### ${e.meta.title} (${e.meta.date})\n`;
+            output += bullets.join('\n') + '\n\n';
+          } else {
+            output += `### ${e.meta.title} (${e.meta.date})\n`;
+            output += e.body.trim().split('\n').slice(0, 5).join('\n') + '\n\n';
+          }
+        }
+      }
+
+      if (uncategorized.length) {
+        output += `## Other Accomplishments\n\n`;
+        for (const e of uncategorized) {
+          const bullets = e.body.split('\n').filter(l => l.trim().startsWith('-'));
+          if (bullets.length) {
+            output += `### ${e.meta.title} (${e.meta.date})\n`;
+            output += bullets.join('\n') + '\n\n';
+          }
+        }
+      }
+
+      // Tag summary
+      const allTags = entries.flatMap(e => e.meta.tags || []);
+      const tagCounts = allTags.reduce((acc, t) => ({ ...acc, [t]: (acc[t] || 0) + 1 }), {} as Record<string, number>);
+      const topTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+      if (topTags.length) {
+        output += `---\n\n## Key Themes\n\n`;
+        output += topTags.map(([tag, count]) => `- **#${tag}** — ${count} entries`).join('\n');
+        output += '\n';
+      }
+
+      break;
+    }
+
     case 'markdown-bundle':
     default:
       output = entries

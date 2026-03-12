@@ -1,4 +1,4 @@
-import { Entry, EntryMeta, TagCount, CollectionInfo, Stats, Task } from '../types';
+import { Entry, EntryMeta, TagCount, CollectionInfo, Stats, Task, Receipt, Link, TKPromise, Snippet, Runbook, RunbookExecution, WallItem, ConfessionalEntry } from '../types';
 
 const BASE = '/api';
 
@@ -131,6 +131,133 @@ export const api = {
     request<Task>(`/tasks/${id}/reopen`, { method: 'PATCH' }),
   deleteTask: (id: string) =>
     request<{ success: boolean }>(`/tasks/${id}`, { method: 'DELETE' }),
+
+  // Receipts
+  listReceipts: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params)}` : '';
+    return request<Receipt[]>(`/receipts${qs}`);
+  },
+  createReceipt: (data: Partial<Receipt>) =>
+    request<Receipt>('/receipts', { method: 'POST', body: JSON.stringify(data) }),
+  updateReceipt: (id: string, data: Partial<Receipt>) =>
+    request<Receipt>(`/receipts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteReceipt: (id: string) =>
+    request<{ success: boolean }>(`/receipts/${id}`, { method: 'DELETE' }),
+
+  // Links
+  listLinks: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params)}` : '';
+    return request<Link[]>(`/links${qs}`);
+  },
+  createLink: (data: Partial<Link>) =>
+    request<Link>('/links', { method: 'POST', body: JSON.stringify(data) }),
+  updateLink: (id: string, data: Partial<Link>) =>
+    request<Link>(`/links/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  markLinkRead: (id: string) =>
+    request<Link>(`/links/${id}/read`, { method: 'PATCH' }),
+  archiveLink: (id: string) =>
+    request<Link>(`/links/${id}/archive`, { method: 'PATCH' }),
+  deleteLink: (id: string) =>
+    request<{ success: boolean }>(`/links/${id}`, { method: 'DELETE' }),
+
+  // Promises
+  listPromises: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params)}` : '';
+    return request<TKPromise[]>(`/promises${qs}`);
+  },
+  createPromise: (data: Partial<TKPromise>) =>
+    request<TKPromise>('/promises', { method: 'POST', body: JSON.stringify(data) }),
+  updatePromise: (id: string, data: Partial<TKPromise>) =>
+    request<TKPromise>(`/promises/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  keepPromise: (id: string) =>
+    request<TKPromise>(`/promises/${id}/keep`, { method: 'PATCH' }),
+  breakPromise: (id: string) =>
+    request<TKPromise>(`/promises/${id}/break`, { method: 'PATCH' }),
+  reopenPromise: (id: string) =>
+    request<TKPromise>(`/promises/${id}/reopen`, { method: 'PATCH' }),
+  deletePromise: (id: string) =>
+    request<{ success: boolean }>(`/promises/${id}`, { method: 'DELETE' }),
+
+  // Snippets
+  listSnippets: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params)}` : '';
+    return request<Snippet[]>(`/snippets${qs}`);
+  },
+  createSnippet: (data: Partial<Snippet>) =>
+    request<Snippet>('/snippets', { method: 'POST', body: JSON.stringify(data) }),
+  updateSnippet: (id: string, data: Partial<Snippet>) =>
+    request<Snippet>(`/snippets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  copySnippet: (id: string) =>
+    request<Snippet>(`/snippets/${id}/copy`, { method: 'PATCH' }),
+  deleteSnippet: (id: string) =>
+    request<{ success: boolean }>(`/snippets/${id}`, { method: 'DELETE' }),
+
+  // Runbooks
+  listRunbooks: () => request<Runbook[]>('/runbooks'),
+  getRunbook: (id: string) => request<Runbook>(`/runbooks/${id}`),
+  createRunbook: (data: Partial<Runbook>) =>
+    request<Runbook>('/runbooks', { method: 'POST', body: JSON.stringify(data) }),
+  updateRunbook: (id: string, data: Partial<Runbook>) =>
+    request<Runbook>(`/runbooks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRunbook: (id: string) =>
+    request<{ success: boolean }>(`/runbooks/${id}`, { method: 'DELETE' }),
+  startRunbook: (id: string) =>
+    request<RunbookExecution>(`/runbooks/${id}/run`, { method: 'POST' }),
+  getRunbookLogs: (id: string) =>
+    request<RunbookExecution[]>(`/runbooks/${id}/logs`),
+  updateExecution: (execId: string, data: { stepId: string; completed: boolean; notes?: string }) =>
+    request<RunbookExecution>(`/runbooks/exec/${execId}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Wall
+  getWallItems: () => request<WallItem[]>('/wall'),
+  createWallItem: (data: Partial<WallItem>) =>
+    request<WallItem>('/wall', { method: 'POST', body: JSON.stringify(data) }),
+  updateWallItem: (id: string, data: Partial<WallItem>) =>
+    request<WallItem>(`/wall/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  bringToFront: (id: string) =>
+    request<WallItem>(`/wall/${id}/front`, { method: 'PATCH' }),
+  deleteWallItem: (id: string) =>
+    request<{ success: boolean }>(`/wall/${id}`, { method: 'DELETE' }),
+
+  // Confessional
+  listConfessional: () => request<ConfessionalEntry[]>('/confessional'),
+  createConfessional: (data: { ciphertext: string; iv: string; salt: string; hint?: string }) =>
+    request<ConfessionalEntry>('/confessional', { method: 'POST', body: JSON.stringify(data) }),
+  updateConfessional: (id: string, data: { ciphertext: string; iv: string; salt: string; hint?: string }) =>
+    request<ConfessionalEntry>(`/confessional/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteConfessional: (id: string) =>
+    request<{ success: boolean }>(`/confessional/${id}`, { method: 'DELETE' }),
+
+  // Standup
+  getStandup: () => request<{ standup: string; yesterdayCount: number; taskCount: number }>('/standup'),
+  getOnThisDay: () => request<{ label: string; date: string; entries: { id: string; title: string; type: string; category: string }[] }[]>('/standup/on-this-day'),
+
+  // Parking lot
+  getParkingLot: () => request<{ content: string }>('/scratch/parking-lot'),
+  saveParkingLot: (content: string) =>
+    request<{ success: boolean }>('/scratch/parking-lot', { method: 'PUT', body: JSON.stringify({ content }) }),
+
+  // Sprint
+  getSprint: () => request<{ name: string; startDate: string; endDate: string; major: string; minor: string } | null>('/scratch/sprint'),
+  saveSprint: (data: { name: string; startDate: string; endDate: string; major: string; minor: string }) =>
+    request<any>('/scratch/sprint', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Git sync
+  gitStatus: () => request<{
+    initialized: boolean;
+    branch: string | null;
+    changes: number;
+    hasRemote: boolean;
+    ahead: number;
+    lastCommit: { hash: string; date: string; message: string } | null;
+    dirty: boolean;
+  }>('/git/status'),
+  gitSync: (message?: string) => request<{
+    success: boolean;
+    message: string;
+    pushed: boolean;
+    commit?: { hash: string; date: string; message: string };
+  }>('/git/sync', { method: 'POST', body: JSON.stringify({ message }) }),
 
   // Exports
   exportEntries: async (options: {

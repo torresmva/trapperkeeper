@@ -20,6 +20,16 @@ import digestRouter from './routes/digest';
 import historyRouter from './routes/history';
 import importRouter from './routes/import';
 import tasksRouter from './routes/tasks';
+import gitRouter from './routes/git';
+import receiptsRouter from './routes/receipts';
+import linksRouter from './routes/links';
+import promisesRouter from './routes/promises';
+import scratchRouter from './routes/scratch';
+import snippetsRouter from './routes/snippets';
+import standupRouter from './routes/standup';
+import runbooksRouter from './routes/runbooks';
+import wallRouter from './routes/wall';
+import confessionalRouter from './routes/confessional';
 
 async function ensureDataDirs() {
   const dirs = [config.journalDir, config.notesDir, config.templatesDir, config.assetsDir];
@@ -51,6 +61,16 @@ async function main() {
   app.use('/api/history', historyRouter);
   app.use('/api/import', importRouter);
   app.use('/api/tasks', tasksRouter);
+  app.use('/api/git', gitRouter);
+  app.use('/api/receipts', receiptsRouter);
+  app.use('/api/links', linksRouter);
+  app.use('/api/promises', promisesRouter);
+  app.use('/api/scratch', scratchRouter);
+  app.use('/api/snippets', snippetsRouter);
+  app.use('/api/standup', standupRouter);
+  app.use('/api/runbooks', runbooksRouter);
+  app.use('/api/wall', wallRouter);
+  app.use('/api/confessional', confessionalRouter);
 
   // Serve client in production
   const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');

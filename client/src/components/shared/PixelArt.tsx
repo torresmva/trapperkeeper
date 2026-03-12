@@ -276,6 +276,256 @@ export function PixelKey({ size = 16, color = 'var(--accent-primary)' }: { size?
   );
 }
 
+export function PixelRocket({ size = 16, color = 'var(--accent-primary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '...##...',
+    '..####..',
+    '..####..',
+    '.######.',
+    '.######.',
+    '..#..#..',
+    '.#....#.',
+    '#......#',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelShield({ size = 16, color = 'var(--accent-primary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '.######.',
+    '########',
+    '########',
+    '########',
+    '.######.',
+    '..####..',
+    '...##...',
+    '....#...',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelCrown({ size = 16, color = 'var(--accent-tertiary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '#..##..#',
+    '##.##.##',
+    '########',
+    '########',
+    '.######.',
+    '.######.',
+    '........',
+    '........',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelMusicNote({ size = 16, color = 'var(--accent-secondary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '..#####.',
+    '..#...#.',
+    '..#...#.',
+    '..#..##.',
+    '..#.###.',
+    '.##..##.',
+    '###.....',
+    '.##.....',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelScroll({ size = 16, color = 'var(--accent-primary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '.#####..',
+    '#.....#.',
+    '#.###..#',
+    '#.###..#',
+    '#.###..#',
+    '#.....#.',
+    '.#####..',
+    '........',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelPotion({ size = 16, color = 'var(--accent-green)' }: { size?: number; color?: string }) {
+  const grid = [
+    '..####..',
+    '...##...',
+    '..####..',
+    '.######.',
+    '.######.',
+    '.######.',
+    '..####..',
+    '........',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelUpload({ size = 16, color = 'var(--accent-primary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '...##...',
+    '..####..',
+    '.######.',
+    '...##...',
+    '...##...',
+    '...##...',
+    '.######.',
+    '.######.',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelWrench({ size = 16, color = 'var(--accent-primary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '#....#..',
+    '##..##..',
+    '.####...',
+    '..##....',
+    '..##....',
+    '.####...',
+    '.#..#...',
+    '#....#..',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelBrick({ size = 16, color = 'var(--accent-tertiary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '########',
+    '###..###',
+    '........',
+    '########',
+    '.###.###',
+    '........',
+    '########',
+    '###..###',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
+export function PixelLock({ size = 16, color = 'var(--accent-secondary)' }: { size?: number; color?: string }) {
+  const grid = [
+    '..####..',
+    '.#....#.',
+    '.#....#.',
+    '########',
+    '###..###',
+    '###..###',
+    '########',
+    '........',
+  ];
+  const px = size / 8;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: 'pixelated' }}>
+      {grid.map((row, y) =>
+        row.split('').map((cell, x) =>
+          cell === '#' ? (
+            <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px} fill={color} />
+          ) : null
+        )
+      )}
+    </svg>
+  );
+}
+
 export function PixelBorder({ width = '100%', color = 'var(--border)' }: { width?: string; color?: string }) {
   return (
     <div style={{

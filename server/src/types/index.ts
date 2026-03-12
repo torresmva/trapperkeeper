@@ -61,6 +61,41 @@ export interface Task {
   completed?: string;
 }
 
+export interface Receipt {
+  id: string;
+  what: string;
+  who: string;
+  date: string;
+  outcome?: string;
+  tags: string[];
+  entryId?: string;
+  status: 'delivered' | 'pending' | 'acknowledged';
+  created: string;
+  modified: string;
+}
+
+export interface Link {
+  id: string;
+  url: string;
+  title: string;
+  note?: string;
+  tags: string[];
+  status: 'unread' | 'read' | 'archived';
+  created: string;
+}
+
+export interface Promise {
+  id: string;
+  description: string;
+  who: string;
+  direction: 'i-owe' | 'they-owe';
+  due?: string;
+  status: 'open' | 'kept' | 'broken';
+  context?: string;
+  created: string;
+  resolved?: string;
+}
+
 export interface Stats {
   totalEntries: number;
   totalJournal: number;

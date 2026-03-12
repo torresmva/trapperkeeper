@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AccentPicker } from '../shared/AccentPicker';
+import { GitSync } from '../shared/GitSync';
+import { SprintCard } from '../shared/SprintCard';
+import { ParkingLot } from '../shared/ParkingLot';
 
 const TAGLINES = [
   'work log // v1.0',
@@ -8,17 +11,22 @@ const TAGLINES = [
   'your quest log',
   '[ save game ]',
   'captain\'s log',
+  'the quiet things that no one ever knows',
+  'me vs. maradona vs. elvis',
+  'not the sun, just a morning star',
+  'you are the smell before rain',
+  'this is the way',
 ];
 
 const navItems = [
-  { to: '/stats', label: 'dashboard', shortcut: '0' },
-  { to: '/digest', label: 'digest', shortcut: '1' },
+  { to: '/stats', label: 'dashboard', shortcut: '1' },
   { to: '/entries', label: 'entries', shortcut: '2' },
   { to: '/collections', label: 'collections', shortcut: '3' },
-  { to: '/timeline', label: 'timeline', shortcut: '4' },
-  { to: '/tasks', label: 'tasks', shortcut: '5' },
-  { to: '/search', label: 'search', shortcut: '6' },
-  { to: '/exports', label: 'export', shortcut: '7' },
+  { to: '/keeper', label: 'keeper', shortcut: '4' },
+  { to: '/wall', label: 'the wall', shortcut: '5' },
+  { to: '/confessional', label: 'confessional', shortcut: '6' },
+  { to: '/search', label: 'search', shortcut: '7' },
+  { to: '/exports', label: 'export', shortcut: '8' },
 ];
 
 export function Sidebar() {
@@ -156,6 +164,15 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Sprint */}
+      {!collapsed && <SprintCard />}
+
+      {/* Parking lot */}
+      {!collapsed && <ParkingLot />}
+
+      {/* Git Sync */}
+      {!collapsed && <GitSync />}
 
       {/* Footer */}
       {!collapsed && (

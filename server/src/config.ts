@@ -10,4 +10,11 @@ export const config = {
   templatesDir: path.join(ROOT, 'data', 'templates'),
   assetsDir: path.join(ROOT, 'data', 'assets'),
   tasksFile: path.join(ROOT, 'data', 'tasks.json'),
+  receiptsFile: path.join(ROOT, 'data', 'receipts.json'),
+  linksFile: path.join(ROOT, 'data', 'links.json'),
+  promisesFile: path.join(ROOT, 'data', 'promises.json'),
+  runbooksFile: path.join(ROOT, 'data', 'runbooks.json'),
+  runbookLogsFile: path.join(ROOT, 'data', 'runbook-logs.json'),
+  wallFile: path.join(ROOT, 'data', 'wall.json'),
+  confessionalFile: path.join(ROOT, 'data', 'confessional.json'),
 };

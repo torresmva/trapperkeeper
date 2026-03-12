@@ -45,6 +45,101 @@ export interface Task {
   completed?: string;
 }
 
+export interface Receipt {
+  id: string;
+  what: string;
+  who: string;
+  date: string;
+  outcome?: string;
+  tags: string[];
+  entryId?: string;
+  status: 'delivered' | 'pending' | 'acknowledged';
+  created: string;
+  modified: string;
+}
+
+export interface Link {
+  id: string;
+  url: string;
+  title: string;
+  note?: string;
+  tags: string[];
+  status: 'unread' | 'read' | 'archived';
+  created: string;
+}
+
+export interface TKPromise {
+  id: string;
+  description: string;
+  who: string;
+  direction: 'i-owe' | 'they-owe';
+  due?: string;
+  status: 'open' | 'kept' | 'broken';
+  context?: string;
+  created: string;
+  resolved?: string;
+}
+
+export interface Snippet {
+  id: string;
+  code: string;
+  language: string;
+  title: string;
+  tags: string[];
+  created: string;
+  copyCount: number;
+}
+
+export interface RunbookStep {
+  id: string;
+  label: string;
+  notes?: string;
+}
+
+export interface Runbook {
+  id: string;
+  title: string;
+  description?: string;
+  steps: RunbookStep[];
+  tags: string[];
+  created: string;
+  modified: string;
+  lastRun?: string;
+  runCount: number;
+}
+
+export interface RunbookExecution {
+  id: string;
+  runbookId: string;
+  startedAt: string;
+  completedAt?: string;
+  steps: { stepId: string; completed: boolean; completedAt?: string; notes?: string }[];
+}
+
+export interface WallItem {
+  id: string;
+  content: string;
+  type: 'note' | 'image' | 'link';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  created: string;
+  modified: string;
+  zIndex: number;
+}
+
+export interface ConfessionalEntry {
+  id: string;
+  ciphertext: string;
+  iv: string;
+  salt: string;
+  hint?: string;
+  created: string;
+  modified: string;
+}
+
 export interface Stats {
   totalEntries: number;
   totalJournal: number;
