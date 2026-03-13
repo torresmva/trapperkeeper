@@ -34,45 +34,93 @@ const WRONG_QUIPS = [
   "mission failed. we'll get 'em next time.",
 ];
 
-// Pixel art skull (16x16)
-const SKULL = [
-  "  ████████████  ",
-  " ██░░░░░░░░░░██ ",
-  "██░░░░░░░░░░░░██",
-  "██░░██░░░░██░░██",
-  "██░░██░░░░██░░██",
-  "██░░░░░░░░░░░░██",
-  "██░░░░░██░░░░░██",
-  " ██░░░░░░░░░░██ ",
-  "  ██░░████░░██  ",
-  "   ██░░░░░░██   ",
-  "    ████████    ",
-  "   ██░░░░░░██   ",
-  "  ██░░░░░░░░██  ",
-  "   ██████████   ",
+// Pixel grid renderer: 1 = filled, 0 = empty
+// Each row is an array of 0/1, rendered as crisp SVG rects
+function PixelArt({ grid, color, glow, size = 5 }: {
+  grid: number[][];
+  color: string;
+  glow?: string;
+  size?: number;
+}) {
+  const h = grid.length;
+  const w = Math.max(...grid.map(r => r.length));
+  return (
+    <svg
+      width={w * size}
+      height={h * size}
+      viewBox={`0 0 ${w} ${h}`}
+      style={{
+        imageRendering: 'pixelated',
+        filter: glow ? `drop-shadow(0 0 6px ${glow})` : undefined,
+      }}
+    >
+      {grid.map((row, y) =>
+        row.map((cell, x) =>
+          cell ? <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={color} /> : null
+        )
+      )}
+    </svg>
+  );
+}
+
+// ── Pixel art grids ──
+
+const LOCK_CLOSED: number[][] = [
+  [0,0,0,0,1,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,0,0,0,1,1,0,0,0],
+  [0,0,1,1,0,0,0,0,0,1,1,0,0],
+  [0,0,1,1,0,0,0,0,0,1,1,0,0],
+  [0,0,1,1,0,0,0,0,0,1,1,0,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,0,0,0,1,1,1,1,0],
+  [0,1,1,1,1,0,0,0,1,1,1,1,0],
+  [0,1,1,1,1,1,0,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
 ];
 
-// Pixel art key (16x8)
-const KEY = [
-  "        ████    ",
-  "      ██░░░░██  ",
-  "██████░░░░░░░░██",
-  "░░░░░░██░░░░██  ",
-  "██████░░████    ",
-  "      ██        ",
+const LOCK_OPEN: number[][] = [
+  [0,0,0,0,0,0,0,1,1,1,1,1,0],
+  [0,0,0,0,0,0,1,1,0,0,0,1,1],
+  [0,0,0,0,0,1,1,0,0,0,0,0,1],
+  [0,0,0,0,0,1,1,0,0,0,0,0,0],
+  [0,0,0,0,0,1,1,0,0,0,0,0,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,0,0,0,1,1,1,1,0],
+  [0,1,1,1,1,0,0,0,1,1,1,1,0],
+  [0,1,1,1,1,1,0,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
 ];
 
-// Pixel art lock (unlocked)
-const LOCK_OPEN = [
-  "    ░░████      ",
-  "    ░░█  █      ",
-  "    ░░█         ",
-  "  ██████████    ",
-  "  █░░░░░░░░█    ",
-  "  █░░░██░░░█    ",
-  "  █░░░██░░░█    ",
-  "  █░░░░░░░░█    ",
-  "  ██████████    ",
+const SKULL: number[][] = [
+  [0,0,0,1,1,1,1,1,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,0,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,0,0,1,1,1,0,0,1,1,0],
+  [0,1,1,0,0,1,1,1,0,0,1,1,0],
+  [0,1,1,1,1,1,1,1,1,1,1,1,0],
+  [0,1,1,1,1,1,0,1,1,1,1,1,0],
+  [0,0,1,1,0,1,0,1,0,1,1,0,0],
+  [0,0,0,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,1,0,0,0,0],
+  [0,0,0,1,0,1,0,1,0,1,0,0,0],
+  [0,0,0,1,1,1,1,1,1,1,0,0,0],
+];
+
+const KEY: number[][] = [
+  [0,0,0,0,0,0,0,0,1,1,1,0,0],
+  [0,0,0,0,0,0,0,1,1,0,1,1,0],
+  [0,0,0,0,0,0,0,1,0,0,0,1,0],
+  [1,1,1,1,1,1,1,1,0,0,0,1,0],
+  [1,0,0,1,0,0,1,1,0,0,1,1,0],
+  [1,1,1,1,1,1,0,0,1,1,1,0,0],
 ];
 
 interface Props {
@@ -88,13 +136,11 @@ export function LoginPage({ onLogin }: Props) {
   const [cursorVisible, setCursorVisible] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Blinking cursor effect
   useEffect(() => {
     const interval = setInterval(() => setCursorVisible(v => !v), 530);
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-focus input
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -123,6 +169,14 @@ export function LoginPage({ onLogin }: Props) {
       setError('connection failed');
     }
   };
+
+  const artColor = unlocked ? '#4ade80' : error ? '#f472b6' : '#22d3ee';
+  const artGlow = unlocked
+    ? 'rgba(74, 222, 128, 0.7)'
+    : error
+    ? 'rgba(244, 114, 182, 0.5)'
+    : 'rgba(34, 211, 238, 0.5)';
+  const artGrid = unlocked ? LOCK_OPEN : error ? SKULL : error ? SKULL : LOCK_CLOSED;
 
   return (
     <div
@@ -164,31 +218,18 @@ export function LoginPage({ onLogin }: Props) {
         width: '100%',
         padding: '0 24px',
       }}>
-        {/* Pixel art */}
+        {/* Pixel art icon */}
         <div style={{
-          marginBottom: 24,
-          lineHeight: '8px',
-          fontSize: '8px',
-          letterSpacing: '0px',
-          userSelect: 'none',
-          transition: 'all 0.5s',
-          opacity: unlocked ? 0.3 : 1,
+          marginBottom: 28,
+          transition: 'opacity 0.5s',
+          opacity: unlocked ? 0.4 : 1,
         }}>
-          <pre style={{
-            fontFamily: 'monospace',
-            color: unlocked ? '#4ade80' : '#22d3ee',
-            margin: 0,
-            display: 'inline-block',
-            textShadow: unlocked
-              ? '0 0 10px rgba(74, 222, 128, 0.8)'
-              : '0 0 10px rgba(34, 211, 238, 0.5)',
-            lineHeight: 1.1,
-            fontSize: '7px',
-          }}>
-            {(unlocked ? LOCK_OPEN : (error ? SKULL : KEY)).map((line, i) => (
-              <span key={i}>{line}{'\n'}</span>
-            ))}
-          </pre>
+          <PixelArt
+            grid={artGrid}
+            color={artColor}
+            glow={artGlow}
+            size={6}
+          />
         </div>
 
         {/* Title */}
@@ -306,7 +347,7 @@ export function LoginPage({ onLogin }: Props) {
           </form>
         )}
 
-        {/* Boot text at bottom */}
+        {/* Boot text */}
         <div style={{
           position: 'fixed',
           bottom: 20,

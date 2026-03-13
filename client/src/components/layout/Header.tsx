@@ -80,8 +80,6 @@ export function Header({ theme, onToggleTheme, onQuickCapture, onLock }: Props) 
           onClick={onLock}
           title="lock trapperkeeper"
           style={{
-            color: 'var(--text-muted)',
-            fontSize: '13px',
             padding: '4px 6px',
             border: 'none',
             background: 'transparent',
@@ -94,7 +92,16 @@ export function Header({ theme, onToggleTheme, onQuickCapture, onLock }: Props) 
           onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
           onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
         >
-          &#x1F512;
+          <svg width="14" height="16" viewBox="0 0 7 8" style={{ imageRendering: 'pixelated' }}>
+            <rect x="2" y="0" width="3" height="1" fill="#ef4444" />
+            <rect x="1" y="1" width="1" height="1" fill="#ef4444" />
+            <rect x="5" y="1" width="1" height="1" fill="#ef4444" />
+            <rect x="1" y="2" width="1" height="1" fill="#ef4444" />
+            <rect x="5" y="2" width="1" height="1" fill="#ef4444" />
+            <rect x="0" y="3" width="7" height="5" fill="#ef4444" />
+            <rect x="3" y="5" width="1" height="2" fill="#050505" />
+            <rect x="2" y="4" width="3" height="1" fill="#050505" />
+          </svg>
         </button>
       )}
     </header>
