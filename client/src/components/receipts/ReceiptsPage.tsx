@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import { Receipt } from '../../types';
 import { PixelTrophy, PixelBorder, PixelGhost, PixelStar } from '../shared/PixelArt';
 import { TagBadge } from '../shared/TagBadge';
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 type StatusFilter = 'all' | 'delivered' | 'pending' | 'acknowledged';
 
@@ -12,15 +13,6 @@ const STATUS_COLORS: Record<string, string> = {
   acknowledged: 'var(--accent-primary)',
 };
 
-const FLAVOR = [
-  "keeping score since day one",
-  "the receipts don't lie",
-  "i brought the receipts — and they're itemized",
-  "proof of work, not proof of stake",
-  "a lannister always keeps their receipts",
-  "you did that. we wrote it down.",
-  "in god we trust. everyone else, show receipts.",
-];
 
 export function ReceiptsPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -33,7 +25,7 @@ export function ReceiptsPage() {
   const [newTags, setNewTags] = useState('');
   const [newStatus, setNewStatus] = useState<Receipt['status']>('delivered');
 
-  const flavor = useMemo(() => FLAVOR[Math.floor(Math.random() * FLAVOR.length)], []);
+  const flavor = useRandomQuote('receipts', "the receipts don't lie");
 
   const loadReceipts = useCallback(async () => {
     try {

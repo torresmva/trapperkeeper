@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { Stats } from '../../types';
@@ -7,44 +7,7 @@ import {
   PixelTrophy, PixelFire, PixelBorder, PixelSword, PixelCoffee, PixelGhost,
   PixelHeart, PixelKey, PixelLightning, PixelScroll,
 } from '../shared/PixelArt';
-
-const GREETINGS = [
-  // games
-  'it\'s dangerous to go alone. take this.',
-  'the cake is a lie, but your impact is real.',
-  'all your base are belong to you.',
-  'wake up, neo. you have entries to write.',
-  'do a barrel roll through your backlog.',
-  'the princess is in another sprint.',
-  'you have died of meeting overload.',
-  'a winner is you.',
-  'war. war never changes. but your code does.',
-  'press start to continue.',
-  'player one ready.',
-  // dev
-  'loading personality module...',
-  'sudo make me productive',
-  'rm -rf /procrastination',
-  'git commit -m "shipped it"',
-  '// TODO: conquer the world',
-  'another day, another deploy.',
-  'segfault in meeting.exe \u2014 core dumped.',
-  'your quest log has been updated.',
-  'level up! +1 to documentation.',
-  // brand new
-  'the quiet things that no one ever knows.',
-  'you are the smell before rain. you are the blood in my veins.',
-  'we lay on our backs and count the stars.',
-  'this is the way that we love, like it\'s forever.',
-  'i am not your friend. i am just a messenger.',
-  // pop culture
-  'this is the way.',
-  'i am inevitable. and by inevitable, i mean productive.',
-  'may the --force be with you.',
-  'we\'re going to need a bigger backlog.',
-  'in case of emergency, write it down.',
-  'i\'m not superstitious, but i am a little stitious.',
-];
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 interface KeeperCounts {
   openPromises: number;
@@ -93,7 +56,7 @@ export function StatsPage() {
     api.getOnThisDay().then(setOnThisDay).catch(() => {});
   }, []);
 
-  const greeting = useMemo(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)], []);
+  const greeting = useRandomQuote('dashboard', 'press start to continue.');
 
   const handleStandup = async () => {
     const res = await api.getStandup();

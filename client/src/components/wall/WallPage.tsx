@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../../api/client';
 import { WallItem } from '../../types';
 import { PixelBrick } from '../shared/PixelArt';
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 const COLORS = [
   'var(--accent-primary)',
@@ -11,13 +12,6 @@ const COLORS = [
   'var(--text-muted)',
 ];
 
-const FLAVOR = [
-  'pin it, move it, forget about it — wait no, that\'s the point',
-  'the quiet things that no one ever knows',
-  'beautiful things in ugly spaces',
-  'a space for the things that don\'t fit anywhere else',
-];
-
 export function WallPage() {
   const [items, setItems] = useState<WallItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +19,7 @@ export function WallPage() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [flavor] = useState(() => FLAVOR[Math.floor(Math.random() * FLAVOR.length)]);
+  const flavor = useRandomQuote('wall', 'the quiet things that no one ever knows');
 
   const loadItems = useCallback(async () => {
     try {

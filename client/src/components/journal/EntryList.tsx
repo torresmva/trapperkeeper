@@ -11,6 +11,7 @@ import {
   PixelLightning, PixelSkull, PixelShield, PixelCrown, PixelScroll,
   PixelBorder, PixelMusicNote,
 } from '../shared/PixelArt';
+import { useRandomQuote, useEmptyQuotes } from '../../hooks/useQuotes';
 
 type ViewMode = 'list' | 'timeline' | 'digest';
 type FilterType = 'all' | 'daily' | 'weekly' | 'monthly' | 'meeting' | '1on1' | 'incident' | 'decision' | 'project-update';
@@ -51,24 +52,8 @@ const TYPE_COLORS: Record<string, string> = {
   'project-update': 'var(--accent-tertiary)',
 };
 
-const EMPTY_QUOTES = [
+const EMPTY_QUOTES_FALLBACK = [
   { text: 'your quest log is empty', sub: 'the adventure begins with a single entry.' },
-  { text: 'nothing here yet', sub: 'every accomplishment starts as an intention.' },
-  { text: 'the silence between the notes', sub: "that's the good stuff. but you still gotta write some notes." },
-  { text: 'you are the smell before rain', sub: 'and your entries are the storm. get writing.' },
-  { text: 'play crack the sky', sub: "we'll keep ourselves warm in the belly of this ship." },
-];
-
-const SUBHEADINGS = [
-  'i will lie awake, lie for fun, and fake the way i hold you',
-  'the power of failing, documented',
-  'you wrote your way out of the dark',
-  'is this thing on?',
-  'this is your story. keep writing.',
-  "don't tell the gods i left a trail",
-  'me vs. maradona vs. the backlog',
-  'the quiet things that no one ever knows — until now',
-  'well, i write to remember',
 ];
 
 interface DigestDay {
@@ -102,8 +87,9 @@ export function EntryList() {
   const [digestLoading, setDigestLoading] = useState(false);
 
   const navigate = useNavigate();
-  const subheading = useMemo(() => SUBHEADINGS[Math.floor(Math.random() * SUBHEADINGS.length)], []);
-  const emptyQuote = useMemo(() => EMPTY_QUOTES[Math.floor(Math.random() * EMPTY_QUOTES.length)], []);
+  const subheading = useRandomQuote('entries', 'this is your story. keep writing.');
+  const emptyQuotes = useEmptyQuotes('entries-empty', EMPTY_QUOTES_FALLBACK);
+  const emptyQuote = useMemo(() => emptyQuotes[Math.floor(Math.random() * emptyQuotes.length)], [emptyQuotes]);
 
   const switchView = (mode: ViewMode) => {
     setViewMode(mode);

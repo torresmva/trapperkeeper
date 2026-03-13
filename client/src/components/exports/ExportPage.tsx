@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { api } from '../../api/client';
 import { PixelTrophy, PixelCrown, PixelScroll, PixelRocket, PixelBorder } from '../shared/PixelArt';
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 const formats = [
   { value: 'brag-doc', label: 'brag doc', icon: <PixelTrophy size={14} color="var(--accent-tertiary)" />, desc: 'self-review / impact summary grouped by collection' },
@@ -9,15 +10,6 @@ const formats = [
   { value: 'markdown-bundle', label: 'full', icon: <PixelRocket size={14} color="var(--accent-secondary)" />, desc: 'complete markdown export with metadata' },
 ];
 
-const FLAVOR = [
-  "you didn't come this far to only come this far",
-  'the quiet things that no one ever knows — until review season',
-  'your work speaks for itself, but a brag doc speaks louder',
-  'show your work. you earned it.',
-  "me vs. the self-review form vs. impostor syndrome",
-  "i'm not gonna teach your man how to ship — oh wait, yes i am",
-  "you've come a long way, baby",
-];
 
 export function ExportPage() {
   const [format, setFormat] = useState('brag-doc');
@@ -27,7 +19,7 @@ export function ExportPage() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const flavor = useMemo(() => FLAVOR[Math.floor(Math.random() * FLAVOR.length)], []);
+  const flavor = useRandomQuote('exports', 'show your work. you earned it.');
   const activeFormat = formats.find(f => f.value === format)!;
 
   const handleExport = async () => {

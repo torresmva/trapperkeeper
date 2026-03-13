@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TaskBoard } from '../tasks/TaskBoard';
 import { ReceiptsPage } from '../receipts/ReceiptsPage';
@@ -9,6 +9,7 @@ import { RunbooksPage } from '../runbooks/RunbooksPage';
 import {
   PixelSword, PixelTrophy, PixelKey, PixelHeart, PixelLightning, PixelWrench, PixelBorder,
 } from '../shared/PixelArt';
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 type KeeperTab = 'tasks' | 'receipts' | 'links' | 'promises' | 'snippets' | 'runbooks';
 
@@ -21,19 +22,12 @@ const TABS: { id: KeeperTab; label: string; icon: React.ReactNode; accent: strin
   { id: 'runbooks', label: 'runbooks', icon: <PixelWrench size={12} color="var(--accent-primary)" />, accent: 'var(--accent-primary)' },
 ];
 
-const FLAVOR = [
-  'trapping tasks, receipts, links, promises, and snippets since day one',
-  "keeping it all together — that's the whole point",
-  "you won't remember this tomorrow. we will.",
-  'the boy who blocked his own context-switching',
-  "i will keep you in a jar beside my bed",
-];
 
 export function KeeperPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as KeeperTab) || 'tasks';
   const [tab, setTab] = useState<KeeperTab>(initialTab);
-  const flavor = useMemo(() => FLAVOR[Math.floor(Math.random() * FLAVOR.length)], []);
+  const flavor = useRandomQuote('keeper', "keeping it all together — that's the whole point");
 
   const switchTab = (t: KeeperTab) => {
     setTab(t);

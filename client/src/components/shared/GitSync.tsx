@@ -1,16 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import { PixelUpload } from './PixelArt';
-
-const SYNC_QUOTES = [
-  'i am not your friend, i am just a messenger',
-  'we are not your friends, we are just your backup',
-  'the repo remembers what you forget',
-  'git push origin main — the sequel is never quite as good',
-  'saving your progress...',
-  'another day, another commit',
-  'your changes are safe with us',
-];
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 interface GitStatus {
   initialized: boolean;
@@ -27,6 +18,7 @@ export function GitSync() {
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const quote = useRandomQuote('git-sync', 'saving your progress...');
 
   const refresh = useCallback(() => {
     api.gitStatus().then(setStatus).catch(() => setStatus(null));
@@ -55,7 +47,6 @@ export function GitSync() {
 
   if (!status?.initialized) return null;
 
-  const quote = SYNC_QUOTES[Math.floor(Math.random() * SYNC_QUOTES.length)];
   const hasPendingWork = status.dirty || status.ahead > 0;
 
   return (

@@ -1,22 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AccentPicker } from '../shared/AccentPicker';
 import { GitSync } from '../shared/GitSync';
 import { SprintCard } from '../shared/SprintCard';
 import { ParkingLot } from '../shared/ParkingLot';
-
-const TAGLINES = [
-  'work log // v1.0',
-  'trapping knowledge',
-  'your quest log',
-  '[ save game ]',
-  'captain\'s log',
-  'the quiet things that no one ever knows',
-  'me vs. maradona vs. elvis',
-  'not the sun, just a morning star',
-  'you are the smell before rain',
-  'this is the way',
-];
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 const navItems = [
   { to: '/stats', label: 'dashboard', shortcut: '1' },
@@ -34,7 +22,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const tagline = useMemo(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)], []);
+  const tagline = useRandomQuote('sidebar', 'trapping knowledge');
 
   return (
     <aside

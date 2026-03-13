@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import { TKPromise } from '../../types';
 import { PixelHeart, PixelBorder, PixelGhost, PixelShield, PixelSkull } from '../shared/PixelArt';
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 type DirectionFilter = 'all' | 'i-owe' | 'they-owe';
 type StatusFilter = 'open' | 'kept' | 'broken';
@@ -17,16 +18,6 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   broken: <PixelSkull size={12} color="var(--accent-tertiary)" />,
 };
 
-const FLAVOR = [
-  "a lannister always pays their debts",
-  "pinky swear protocol v2.0",
-  "we will keep these promises — what else can we do?",
-  "you are the smell before rain. don't let them down.",
-  "trust, but verify. then write it down.",
-  "i will follow you into the dark (of accountability)",
-  "the quiet things that someone definitely needs to know",
-  "not all promises are created equal",
-];
 
 function isOverdue(due?: string): boolean {
   if (!due) return false;
@@ -51,7 +42,7 @@ export function PromisesPage() {
   const [newDue, setNewDue] = useState('');
   const [newContext, setNewContext] = useState('');
 
-  const flavor = useMemo(() => FLAVOR[Math.floor(Math.random() * FLAVOR.length)], []);
+  const flavor = useRandomQuote('promises', 'a lannister always pays their debts');
 
   const loadPromises = useCallback(async () => {
     try {

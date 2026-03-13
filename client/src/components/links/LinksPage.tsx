@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import { Link } from '../../types';
 import { PixelKey, PixelBorder, PixelGhost, PixelSkull } from '../shared/PixelArt';
 import { TagBadge } from '../shared/TagBadge';
+import { useRandomQuote } from '../../hooks/useQuotes';
 
 type StatusFilter = 'all' | 'unread' | 'read' | 'archived';
 
@@ -11,16 +12,6 @@ const STATUS_COLORS: Record<string, string> = {
   read: 'var(--accent-green)',
   archived: 'var(--text-muted)',
 };
-
-const FLAVOR = [
-  "a graveyard for your browser tabs",
-  "47 tabs walk into a bar...",
-  "link in bio (and also here)",
-  "you bookmarked this. now read it.",
-  "hoarding links is self-care",
-  "ctrl+d but make it permanent",
-  "the boy who blocked his own productivity with tabs",
-];
 
 export function LinksPage() {
   const [links, setLinks] = useState<Link[]>([]);
@@ -32,7 +23,7 @@ export function LinksPage() {
   const [newNote, setNewNote] = useState('');
   const [newTags, setNewTags] = useState('');
 
-  const flavor = useMemo(() => FLAVOR[Math.floor(Math.random() * FLAVOR.length)], []);
+  const flavor = useRandomQuote('links', 'a graveyard for your browser tabs');
 
   const loadLinks = useCallback(async () => {
     try {
