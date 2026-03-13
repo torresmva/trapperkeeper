@@ -4,6 +4,7 @@ import { useTheme } from './hooks/useTheme';
 import { useWebSocket } from './hooks/useWebSocket';
 import { MainLayout } from './components/layout/MainLayout';
 import { MobileNav } from './components/layout/MobileNav';
+import { LoginPage } from './components/auth/LoginPage';
 import { EntryList } from './components/journal/EntryList';
 import { EntryEditor } from './components/journal/EntryEditor';
 import { QuickCapture } from './components/notes/QuickCapture';
@@ -20,6 +21,15 @@ import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
 export default function App() {
   const { theme, toggleTheme } = useTheme();
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+
+  // Check auth on mount
+  useEffect(() => {
+    fetch('/api/auth/check')
+      .then(r => r.json())
+      .then(data => setAuthenticated(data.authenticated))
+      .catch(() => setAuthenticated(false));
+  }, []);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -48,6 +58,24 @@ export default function App() {
       window.dispatchEvent(new CustomEvent('tk-file-change', { detail: msg }));
     }
   }, []));
+
+  // Auth loading state
+  if (authenticated === null) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: '#050505',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: "'JetBrains Mono', monospace", fontSize: '12px',
+        color: 'rgba(255,255,255,0.3)',
+      }}>
+        booting...
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <LoginPage onLogin={() => setAuthenticated(true)} />;
+  }
 
   return (
     <BrowserRouter>

@@ -8,6 +8,8 @@ import { config } from './config';
 import { buildIndex } from './services/searchIndex';
 import { startWatcher } from './services/watcher';
 import { errorHandler } from './middleware/errorHandler';
+import { authMiddleware } from './middleware/auth';
+import authRouter from './routes/auth';
 import entriesRouter from './routes/entries';
 import notesRouter from './routes/notes';
 import searchRouter from './routes/search';
@@ -44,6 +46,10 @@ async function main() {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
+
+  // Auth
+  app.use('/api/auth', authRouter);
+  app.use(authMiddleware);
 
   // Serve assets statically
   app.use('/api/assets/files', express.static(config.assetsDir));
