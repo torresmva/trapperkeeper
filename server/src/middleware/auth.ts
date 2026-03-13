@@ -23,6 +23,9 @@ function parseCookies(header: string | undefined): Record<string, string> {
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Only gate /api/* routes (not static files / client HTML)
+  if (!req.path.startsWith('/api/')) return next();
+
   // Skip auth routes
   if (req.path.startsWith('/api/auth')) return next();
 

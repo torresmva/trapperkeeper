@@ -5,6 +5,7 @@ interface Props {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onQuickCapture: () => void;
+  onLock?: () => void;
 }
 
 function getBreadcrumb(pathname: string): string {
@@ -20,7 +21,7 @@ function getBreadcrumb(pathname: string): string {
   return '';
 }
 
-export function Header({ theme, onToggleTheme, onQuickCapture }: Props) {
+export function Header({ theme, onToggleTheme, onQuickCapture, onLock }: Props) {
   const location = useLocation();
   const breadcrumb = getBreadcrumb(location.pathname);
 
@@ -73,6 +74,29 @@ export function Header({ theme, onToggleTheme, onQuickCapture }: Props) {
       </button>
 
       <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+
+      {onLock && (
+        <button
+          onClick={onLock}
+          title="lock trapperkeeper"
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '13px',
+            padding: '4px 6px',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            opacity: 0.5,
+            transition: 'opacity 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
+        >
+          &#x1F512;
+        </button>
+      )}
     </header>
   );
 }

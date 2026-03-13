@@ -73,6 +73,11 @@ export default function App() {
     );
   }
 
+  const handleLock = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setAuthenticated(false);
+  };
+
   if (!authenticated) {
     return <LoginPage onLogin={() => setAuthenticated(true)} />;
   }
@@ -86,6 +91,7 @@ export default function App() {
               theme={theme}
               onToggleTheme={toggleTheme}
               onQuickCapture={() => setQuickCaptureOpen(true)}
+              onLock={handleLock}
             />
           }
         >
