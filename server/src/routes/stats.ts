@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { getAllEntries } from '../services/fileStore';
-import { format, subDays, startOfWeek, startOfMonth, differenceInDays, parseISO, isValid } from 'date-fns';
+import { format, subDays, startOfWeek, startOfMonth } from 'date-fns';
 import { Stats, ActivityDay } from '../types';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response) => {
-  const all = await getAllEntries();
+router.get('/', async (req: Request, res: Response) => {
+  const space = req.query.space as string | undefined;
+  const allRaw = await getAllEntries();
+  const all = space ? allRaw.filter(e => (e.meta as any).space === space) : allRaw;
   const journal = all.filter(e => e.meta.category === 'journal');
   const notes = all.filter(e => e.meta.category === 'notes');
 
@@ -87,6 +89,40 @@ router.get('/', async (_req: Request, res: Response) => {
   };
 
   res.json(stats);
+});
+
+// Radar endpoint — entry distribution across tags or collections
+router.get('/radar', async (req: Request, res: Response) => {
+  const window = parseInt(req.query.window as string) || 30;
+  const by = (req.query.by as string) || 'collections';
+  const space = req.query.space as string | undefined;
+  const allRaw = await getAllEntries();
+  const all = space ? allRaw.filter(e => (e.meta as any).space === space) : allRaw;
+  const today = new Date();
+  const cutoff = format(subDays(today, window), 'yyyy-MM-dd');
+
+  const filtered = all.filter(e => e.meta.date >= cutoff);
+  const counts: Record<string, number> = {};
+
+  for (const entry of filtered) {
+    const items = by === 'tags' ? entry.meta.tags : (entry.meta.collections || []);
+    for (const item of items) {
+      counts[item] = (counts[item] || 0) + 1;
+    }
+  }
+
+  // Sort by count descending, take top 8
+  const sorted = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  const max = sorted.length > 0 ? sorted[0][1] : 1;
+  const axes = sorted.map(([name, value]) => ({
+    name,
+    value: value / max,
+  }));
+
+  res.json({ axes, window, by });
 });
 
 export default router;

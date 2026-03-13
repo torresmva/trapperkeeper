@@ -4,6 +4,8 @@ import { EntryMeta } from '../types';
 export function parseFrontmatter(content: string): { meta: EntryMeta; body: string } {
   const { data, content: body } = matter(content);
   const meta: EntryMeta = {
+    // Spread raw data first so extra fields (parent, order, etc.) are preserved
+    ...data,
     title: data.title || 'Untitled',
     date: data.date || new Date().toISOString().split('T')[0],
     type: data.type || 'note',

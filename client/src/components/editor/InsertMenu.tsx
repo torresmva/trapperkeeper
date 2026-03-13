@@ -44,6 +44,7 @@ export const INSERT_ITEMS: InsertItem[] = [
   { label: 'Image', shortcut: 'img', snippet: '![alt](url)', category: 'media' },
   { label: 'Wiki Link', shortcut: 'wiki', snippet: '[[', category: 'media' },
   { label: 'Audio Player', shortcut: 'audio', snippet: '<audio controls src="url"></audio>', category: 'media' },
+  { label: 'PDF Embed', shortcut: 'pdf', snippet: '[document.pdf](/api/assets/files/filename.pdf)', category: 'media' },
 
   // Tables
   { label: 'Table (2 col)', shortcut: 'table2', snippet: '| Column 1 | Column 2 |\n|----------|----------|\n| | |\n| | |', category: 'tables' },

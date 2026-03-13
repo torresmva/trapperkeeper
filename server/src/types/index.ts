@@ -9,6 +9,7 @@ export interface EntryMeta {
   archived?: boolean;
   pinnedInCollections?: string[];
   links?: string[];
+  space?: string;
   created: string;
   modified: string;
 }

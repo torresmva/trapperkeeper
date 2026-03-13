@@ -8,6 +8,20 @@ async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });
 }
 
+async function uniquePath(dir: string, baseName: string): Promise<string> {
+  let candidate = path.join(dir, `${baseName}.md`);
+  let suffix = 1;
+  while (true) {
+    try {
+      await fs.access(candidate);
+      candidate = path.join(dir, `${baseName}-${suffix}.md`);
+      suffix++;
+    } catch {
+      return candidate;
+    }
+  }
+}
+
 async function findMdFiles(dir: string): Promise<string[]> {
   const files: string[] = [];
   try {
@@ -70,8 +84,17 @@ export async function createEntry(
     const [year, month] = meta.date.split('-');
     const dir = path.join(baseDir, year, month);
     await ensureDir(dir);
-    const name = filename || `${meta.date}.md`;
-    filePath = path.join(dir, name);
+    if (filename) {
+      filePath = path.join(dir, filename);
+    } else {
+      const slug = meta.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 40);
+      const baseName = slug ? `${meta.date}-${slug}` : meta.date;
+      filePath = await uniquePath(dir, baseName);
+    }
   } else {
     await ensureDir(baseDir);
     const slug = meta.title
@@ -79,8 +102,11 @@ export async function createEntry(
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
       .slice(0, 50);
-    const name = filename || `${slug}-${Date.now()}.md`;
-    filePath = path.join(baseDir, name);
+    if (filename) {
+      filePath = path.join(baseDir, filename);
+    } else {
+      filePath = await uniquePath(baseDir, slug || 'note');
+    }
   }
 
   const content = serializeFrontmatter(meta, body);

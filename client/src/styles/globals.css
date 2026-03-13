@@ -293,6 +293,26 @@ h1, h2, h3, h4, h5, h6 {
   50% { opacity: 0.4; }
 }
 
+@keyframes entrySlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes groupHeaderReveal {
+  from { opacity: 0; transform: scaleX(0); transform-origin: left; }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes scanlineFlash {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 -4px; }
+}
+
+@keyframes crtFlicker {
+  0% { opacity: 0.008; }
+  100% { opacity: 0.02; }
+}
+
 /* ── Print Stylesheet ── */
 @media print {
   body {

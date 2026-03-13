@@ -86,3 +86,111 @@ export const themes = {
 } as const;
 
 export type Theme = 'dark' | 'light';
+
+export interface ThemeVariant {
+  name: string;
+  label: string;
+  description: string;
+  overrides: Partial<Record<string, string>>;
+}
+
+export const themeVariants: ThemeVariant[] = [
+  {
+    name: 'default',
+    label: 'midnight',
+    description: 'the original. cyan on black.',
+    overrides: {}, // no overrides, uses default dark theme
+  },
+  {
+    name: 'terminal',
+    label: 'terminal',
+    description: 'phosphor green. old school.',
+    overrides: {
+      '--accent-primary': '#00ff41',
+      '--accent-secondary': '#00cc33',
+      '--accent-tertiary': '#88ff88',
+      '--accent-green': '#00ff41',
+      '--accent-primary-dim': 'rgba(0, 255, 65, 0.08)',
+      '--accent-secondary-dim': 'rgba(0, 204, 51, 0.08)',
+      '--accent-tertiary-dim': 'rgba(136, 255, 136, 0.08)',
+      '--border-focus': '#00ff41',
+      '--glow-primary': '0 0 30px rgba(0, 255, 65, 0.1)',
+      '--glow-secondary': '0 0 30px rgba(0, 204, 51, 0.1)',
+      '--success': '#00ff41',
+      '--hljs-keyword': '#00ff41',
+      '--hljs-string': '#88ff88',
+      '--hljs-function': '#00cc33',
+      '--hljs-type': '#66ffaa',
+      '--hljs-number': '#aaffaa',
+      '--activity-1': '#003300',
+      '--activity-2': '#006600',
+      '--activity-3': '#009900',
+      '--activity-4': '#00ff41',
+    },
+  },
+  {
+    name: 'synthwave',
+    label: 'synthwave',
+    description: 'neon dreams. retro future.',
+    overrides: {
+      '--bg-primary': '#0a0015',
+      '--bg-secondary': '#0f001f',
+      '--bg-surface': '#140028',
+      '--bg-surface-hover': '#1a0033',
+      '--bg-input': '#0a0015',
+      '--bg-rail': '#0c0018',
+      '--accent-primary': '#ff6ec7',
+      '--accent-secondary': '#7b68ee',
+      '--accent-tertiary': '#00ffff',
+      '--accent-green': '#39ff14',
+      '--accent-primary-dim': 'rgba(255, 110, 199, 0.08)',
+      '--accent-secondary-dim': 'rgba(123, 104, 238, 0.08)',
+      '--accent-tertiary-dim': 'rgba(0, 255, 255, 0.08)',
+      '--border': '#2a0044',
+      '--border-focus': '#ff6ec7',
+      '--glow-primary': '0 0 30px rgba(255, 110, 199, 0.12)',
+      '--glow-secondary': '0 0 30px rgba(123, 104, 238, 0.12)',
+      '--hljs-keyword': '#ff6ec7',
+      '--hljs-string': '#00ffff',
+      '--hljs-function': '#7b68ee',
+      '--hljs-type': '#ff6ec7',
+      '--hljs-number': '#39ff14',
+      '--hljs-comment': '#4a3060',
+      '--activity-1': '#1a0030',
+      '--activity-2': '#4a0066',
+      '--activity-3': '#aa0099',
+      '--activity-4': '#ff6ec7',
+    },
+  },
+  {
+    name: 'amber',
+    label: 'amber crt',
+    description: 'warm phosphor. 1983 vibes.',
+    overrides: {
+      '--accent-primary': '#ffb000',
+      '--accent-secondary': '#ff8c00',
+      '--accent-tertiary': '#ffd700',
+      '--accent-green': '#ffb000',
+      '--accent-primary-dim': 'rgba(255, 176, 0, 0.08)',
+      '--accent-secondary-dim': 'rgba(255, 140, 0, 0.08)',
+      '--accent-tertiary-dim': 'rgba(255, 215, 0, 0.08)',
+      '--border-focus': '#ffb000',
+      '--glow-primary': '0 0 30px rgba(255, 176, 0, 0.1)',
+      '--glow-secondary': '0 0 30px rgba(255, 140, 0, 0.1)',
+      '--text-primary': '#ffcc66',
+      '--text-secondary': '#cc9933',
+      '--text-muted': '#886622',
+      '--success': '#ffb000',
+      '--hljs-keyword': '#ffd700',
+      '--hljs-string': '#ffcc66',
+      '--hljs-function': '#ff8c00',
+      '--hljs-type': '#ffb000',
+      '--hljs-number': '#ffd700',
+      '--hljs-comment': '#664400',
+      '--activity-1': '#1a1000',
+      '--activity-2': '#4d3000',
+      '--activity-3': '#995500',
+      '--activity-4': '#ffb000',
+    },
+  },
+];

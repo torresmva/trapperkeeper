@@ -50,6 +50,38 @@ export function MarkdownRenderer({ content }: Props) {
           if (href && audioExts.test(href)) {
             return <audio controls src={href} />;
           }
+          // Inline PDF viewer
+          if (href && /\.pdf$/i.test(href)) {
+            return (
+              <div style={{ margin: '12px 0' }}>
+                <div style={{
+                  fontSize: '10px', color: 'var(--text-muted)', marginBottom: 4,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <span style={{ color: 'var(--accent-tertiary)' }}>pdf</span>
+                  <a href={href} target="_blank" rel="noopener noreferrer"
+                    style={{ color: 'var(--accent-primary)', textDecoration: 'none', borderBottom: '1px solid var(--border)' }}>
+                    {String(children) || href.split('/').pop()}
+                  </a>
+                </div>
+                <object
+                  data={href}
+                  type="application/pdf"
+                  style={{
+                    width: '100%', height: '600px', border: '1px solid var(--border)',
+                    background: 'var(--bg-secondary)',
+                  }}
+                >
+                  <p style={{ padding: 12, fontSize: '11px', color: 'var(--text-muted)' }}>
+                    PDF preview not supported in this browser.{' '}
+                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)' }}>
+                      download
+                    </a>
+                  </p>
+                </object>
+              </div>
+            );
+          }
           return <a href={href} {...props}>{children}</a>;
         },
         p({ children, ...props }) {

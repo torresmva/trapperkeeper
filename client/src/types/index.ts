@@ -6,8 +6,10 @@ export interface EntryMeta {
   tags: string[];
   collections: string[];
   pinned?: boolean;
+  archived?: boolean;
   pinnedInCollections?: string[];
   links?: string[];
+  space?: string;
   created: string;
   modified: string;
 }
@@ -151,4 +153,62 @@ export interface Stats {
   activity: ActivityDay[];
   topTags: { name: string; count: number }[];
   topCollections: { name: string; count: number }[];
+}
+
+export interface Trophy {
+  id: string;
+  name: string;
+  description: string;
+  category: 'streak' | 'volume' | 'exploration' | 'special';
+  threshold: number;
+  icon: string;
+  progress: number;
+  unlockedAt?: string;
+}
+
+export interface WikiPage {
+  id: string;
+  meta: WikiPageMeta;
+  body?: string;
+}
+
+export interface WikiPageMeta {
+  title: string;
+  parent?: string;
+  tags: string[];
+  created: string;
+  modified: string;
+  order?: number;
+}
+
+export interface WikiTreeNode {
+  id: string;
+  title: string;
+  children: WikiTreeNode[];
+}
+
+export interface Capsule {
+  id: string;
+  title: string;
+  content: string;
+  created: string;
+  unlockDate: string;
+  openedAt?: string;
+  sealed: boolean;
+}
+
+export interface RadarData {
+  axes: { name: string; value: number }[];
+  window: number;
+  by: string;
+}
+
+export interface GhostEntry {
+  id: string;
+  title: string;
+  date: string;
+  type: string;
+  category: string;
+  bodyLength: number;
+  age: number;
 }

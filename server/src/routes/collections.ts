@@ -6,10 +6,12 @@ const router = Router();
 // List all collections with counts
 router.get('/', async (req: Request, res: Response) => {
   const showArchived = req.query.archived === 'true';
+  const space = req.query.space as string | undefined;
   let all = await getAllEntries();
   if (!showArchived) {
     all = all.filter(e => !e.meta.archived);
   }
+  if (space) all = all.filter(e => (e.meta as any).space === space);
   const collMap: Record<string, { count: number; pinnedCount: number }> = {};
 
   for (const entry of all) {
@@ -33,10 +35,12 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:name', async (req: Request, res: Response) => {
   const name = req.params.name;
   const showArchived = req.query.archived === 'true';
+  const space = req.query.space as string | undefined;
   let all = await getAllEntries();
   if (!showArchived) {
     all = all.filter(e => !e.meta.archived);
   }
+  if (space) all = all.filter(e => (e.meta as any).space === space);
   const entries = all.filter(e => (e.meta.collections || []).includes(name));
 
   // Sort: pinned first, then by date

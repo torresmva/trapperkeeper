@@ -3,11 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { Stats } from '../../types';
 import { ActivityBoard } from './ActivityBoard';
+import { TrophyCase } from './TrophyCase';
+import { RadarChart } from './RadarChart';
+import { GhostPanel } from './GhostPanel';
 import {
   PixelTrophy, PixelFire, PixelBorder, PixelSword, PixelCoffee, PixelGhost,
   PixelHeart, PixelKey, PixelLightning, PixelScroll,
 } from '../shared/PixelArt';
 import { useRandomQuote } from '../../hooks/useQuotes';
+import { useSpace } from '../../contexts/SpaceContext';
 
 interface KeeperCounts {
   openPromises: number;
@@ -30,9 +34,11 @@ export function StatsPage() {
   const [standup, setStandup] = useState<string | null>(null);
   const [standupCopied, setStandupCopied] = useState(false);
   const navigate = useNavigate();
+  const { activeSpace } = useSpace();
 
   useEffect(() => {
-    api.getStats()
+    setLoading(true);
+    api.getStats(activeSpace || undefined)
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -54,7 +60,7 @@ export function StatsPage() {
 
     // Load on this day
     api.getOnThisDay().then(setOnThisDay).catch(() => {});
-  }, []);
+  }, [activeSpace]);
 
   const greeting = useRandomQuote('dashboard', 'press start to continue.');
 
@@ -315,6 +321,15 @@ export function StatsPage() {
           ))}
         </div>
       )}
+
+      {/* Trophy case */}
+      <TrophyCase />
+
+      {/* Radar chart */}
+      <RadarChart />
+
+      {/* Ghost panel */}
+      <GhostPanel />
 
       {/* Two columns: tags + collections */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>

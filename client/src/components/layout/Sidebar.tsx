@@ -1,28 +1,136 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AccentPicker } from '../shared/AccentPicker';
 import { GitSync } from '../shared/GitSync';
 import { SprintCard } from '../shared/SprintCard';
 import { ParkingLot } from '../shared/ParkingLot';
 import { useRandomQuote } from '../../hooks/useQuotes';
+import { useSpace } from '../../contexts/SpaceContext';
 
-const navItems = [
-  { to: '/stats', label: 'dashboard', shortcut: '1' },
-  { to: '/entries', label: 'entries', shortcut: '2' },
-  { to: '/collections', label: 'collections', shortcut: '3' },
-  { to: '/keeper', label: 'keeper', shortcut: '4' },
-  { to: '/wall', label: 'the wall', shortcut: '5' },
-  { to: '/confessional', label: 'confessional', shortcut: '6' },
-  { to: '/workbench', label: 'workbench', shortcut: '7' },
-  { to: '/search', label: 'search', shortcut: '8' },
-  { to: '/exports', label: 'export', shortcut: '9' },
+interface NavItem {
+  to: string;
+  label: string;
+}
+
+interface NavGroup {
+  key: string;
+  label: string;
+  items: NavItem[];
+}
+
+const topItem: NavItem = { to: '/stats', label: 'dashboard' };
+
+const navGroups: NavGroup[] = [
+  {
+    key: 'write',
+    label: 'write',
+    items: [
+      { to: '/entries', label: 'entries' },
+      { to: '/collections', label: 'collections' },
+      { to: '/wiki', label: 'wiki' },
+      { to: '/templates', label: 'templates' },
+    ],
+  },
+  {
+    key: 'track',
+    label: 'track',
+    items: [
+      { to: '/keeper', label: 'keeper' },
+      { to: '/activity', label: 'activity' },
+    ],
+  },
+  {
+    key: 'tools',
+    label: 'tools',
+    items: [
+      { to: '/search', label: 'search' },
+      { to: '/workbench', label: 'workbench' },
+      { to: '/exports', label: 'export' },
+    ],
+  },
+  {
+    key: 'vault',
+    label: 'vault',
+    items: [
+      { to: '/wall', label: 'the wall' },
+      { to: '/confessional', label: 'confessional' },
+      { to: '/capsules', label: 'capsules' },
+      { to: '/oubliette', label: 'oubliette' },
+    ],
+  },
 ];
+
+function getStoredState(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem('tk-nav-groups');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveState(state: Record<string, boolean>) {
+  localStorage.setItem('tk-nav-groups', JSON.stringify(state));
+}
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [groupState, setGroupState] = useState<Record<string, boolean>>(getStoredState);
+  const [crt, setCrt] = useState(() => localStorage.getItem('tk-crt') === 'true');
   const location = useLocation();
   const navigate = useNavigate();
   const tagline = useRandomQuote('sidebar', 'trapping knowledge');
+  const { activeSpace, setActiveSpace, spaces, addSpace } = useSpace();
+
+  const toggleCrt = useCallback(() => {
+    const next = !crt;
+    setCrt(next);
+    localStorage.setItem('tk-crt', String(next));
+    window.dispatchEvent(new Event('tk-crt-change'));
+  }, [crt]);
+
+  // Auto-expand group containing active route
+  useEffect(() => {
+    for (const group of navGroups) {
+      const hasActive = group.items.some(item => location.pathname.startsWith(item.to));
+      if (hasActive && !groupState[group.key]) {
+        setGroupState(prev => {
+          const next = { ...prev, [group.key]: true };
+          saveState(next);
+          return next;
+        });
+      }
+    }
+  }, [location.pathname]);
+
+  const toggleGroup = (key: string) => {
+    setGroupState(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveState(next);
+      return next;
+    });
+  };
+
+  const isActive = (to: string) => {
+    if (to === '/stats') return location.pathname === '/stats' || location.pathname === '/';
+    return location.pathname.startsWith(to);
+  };
+
+  const linkStyle = (to: string, indent: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 0,
+    padding: collapsed ? '7px 0' : `7px 16px 7px ${indent ? '28px' : '16px'}`,
+    justifyContent: collapsed ? 'center' : 'flex-start',
+    color: isActive(to) ? 'var(--accent-primary)' : 'var(--text-secondary)',
+    textDecoration: 'none',
+    fontSize: '12px',
+    fontWeight: 400,
+    transition: 'color 0.15s',
+    position: 'relative',
+    borderLeft: isActive(to) ? '2px solid var(--accent-primary)' : '2px solid transparent',
+    whiteSpace: 'nowrap',
+  });
 
   return (
     <aside
@@ -40,7 +148,7 @@ export function Sidebar() {
         userSelect: 'none',
       }}
     >
-      {/* Brand — click navigates to dashboard */}
+      {/* Brand */}
       <div
         style={{
           padding: collapsed ? '20px 0' : '20px 16px',
@@ -115,42 +223,183 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto' }}>
-        {navItems.map(item => {
-          const isActive = item.to === '/stats'
-            ? location.pathname === '/stats' || location.pathname === '/'
-            : location.pathname.startsWith(item.to);
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
+      {/* Space switcher — always visible */}
+      {!collapsed && (
+        <div style={{
+          borderBottom: '1px solid var(--border)',
+        }}>
+          <div style={{
+            display: 'flex',
+            gap: 0,
+          }}>
+            <button
+              onClick={() => setActiveSpace(null)}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0,
-                padding: collapsed ? '8px 0' : '8px 16px',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                textDecoration: 'none',
-                fontSize: '12px',
-                fontWeight: 400,
-                transition: 'color 0.15s',
-                position: 'relative',
-                borderLeft: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                whiteSpace: 'nowrap',
+                flex: 1,
+                padding: '6px 0',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: !activeSpace ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                color: !activeSpace ? 'var(--accent-primary)' : 'var(--text-muted)',
+                fontSize: '9px',
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: '0.08em',
+                cursor: 'pointer',
+                textTransform: 'lowercase',
               }}
             >
-              {!collapsed && (
-                <>
-                  <span style={{ color: 'var(--text-muted)', marginRight: 8, fontSize: '10px' }}>{item.shortcut}</span>
-                  {item.label}
-                </>
-              )}
-              {collapsed && (
-                <span style={{ fontSize: '10px' }}>{item.label.charAt(0)}</span>
-              )}
-            </NavLink>
+              all
+            </button>
+            {spaces.map(s => (
+              <button
+                key={s}
+                onClick={() => setActiveSpace(s)}
+                style={{
+                  flex: 1,
+                  padding: '6px 0',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: activeSpace === s ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                  color: activeSpace === s ? 'var(--accent-primary)' : 'var(--text-muted)',
+                  fontSize: '9px',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  letterSpacing: '0.08em',
+                  cursor: 'pointer',
+                  textTransform: 'lowercase',
+                }}
+              >
+                {s}
+              </button>
+            ))}
+            <span style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 6px',
+            }}>
+              <input
+                placeholder="+ space"
+                style={{
+                  width: 52,
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  fontSize: '9px',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  padding: '2px 0',
+                  outline: 'none',
+                  textTransform: 'lowercase',
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value.trim().toLowerCase();
+                    if (val) {
+                      addSpace(val);
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }
+                }}
+              />
+            </span>
+          </div>
+        </div>
+      )}
+      {collapsed && (
+        <button
+          onClick={() => {
+            if (spaces.length === 0) return;
+            if (!activeSpace) {
+              setActiveSpace(spaces[0]);
+            } else {
+              const idx = spaces.indexOf(activeSpace);
+              setActiveSpace(idx < spaces.length - 1 ? spaces[idx + 1] : null);
+            }
+          }}
+          style={{
+            width: '100%',
+            padding: '6px 0',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: '1px solid var(--border)',
+            color: activeSpace ? 'var(--accent-primary)' : 'var(--text-muted)',
+            fontSize: '9px',
+            fontFamily: "'JetBrains Mono', monospace",
+            cursor: 'pointer',
+          }}
+          title={activeSpace ? `space: ${activeSpace}` : 'all spaces'}
+        >
+          {activeSpace ? activeSpace.charAt(0) : '●'}
+        </button>
+      )}
+
+      {/* Nav */}
+      <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
+        {/* Dashboard — top level */}
+        <NavLink to={topItem.to} style={linkStyle(topItem.to, false)}>
+          {!collapsed && topItem.label}
+          {collapsed && <span style={{ fontSize: '10px' }}>d</span>}
+        </NavLink>
+
+        {/* Grouped items */}
+        {navGroups.map(group => {
+          const open = groupState[group.key] ?? true;
+          const groupHasActive = group.items.some(item => isActive(item.to));
+
+          return (
+            <div key={group.key}>
+              {/* Group header */}
+              <button
+                onClick={() => toggleGroup(group.key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  borderLeft: '2px solid transparent',
+                  padding: collapsed ? '10px 0' : '10px 16px 4px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  cursor: 'pointer',
+                  color: groupHasActive ? 'var(--accent-primary)' : 'var(--text-muted)',
+                  fontSize: '9px',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {!collapsed && (
+                  <>
+                    <span style={{
+                      fontSize: '8px',
+                      transition: 'transform 0.15s',
+                      transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+                      display: 'inline-block',
+                    }}>
+                      ▸
+                    </span>
+                    {group.label}
+                  </>
+                )}
+                {collapsed && (
+                  <span style={{ fontSize: '8px', opacity: 0.4 }}>—</span>
+                )}
+              </button>
+
+              {/* Group items */}
+              {(open || collapsed) && group.items.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  style={linkStyle(item.to, !collapsed)}
+                >
+                  {!collapsed && item.label}
+                  {collapsed && (
+                    <span style={{ fontSize: '10px' }}>{item.label.charAt(0)}</span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           );
         })}
       </nav>
@@ -167,18 +416,52 @@ export function Sidebar() {
       {/* Footer */}
       {!collapsed && (
         <div style={{
-          padding: '12px 16px',
+          padding: '8px 16px',
           borderTop: '1px solid var(--border)',
           fontSize: '10px',
           color: 'var(--text-muted)',
-          lineHeight: 1.8,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          justifyContent: 'space-between',
         }}>
-          <span style={{ color: 'var(--accent-primary)' }}>^K</span> capture<br/>
-          <span style={{ color: 'var(--accent-primary)' }}>^P</span> full preview<br/>
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>accent</span>
             <AccentPicker />
           </div>
+          <button
+            onClick={toggleCrt}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px 0',
+              color: crt ? 'var(--accent-primary)' : 'var(--text-muted)',
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+            title="Toggle CRT scanline effect"
+          >
+            crt
+            <span style={{
+              width: 12,
+              height: 12,
+              background: crt ? 'var(--accent-primary)' : 'transparent',
+              border: '1px solid var(--border)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '7px',
+              color: crt ? 'var(--bg-primary)' : 'var(--text-muted)',
+            }}>
+              {crt ? '■' : ''}
+            </span>
+          </button>
         </div>
       )}
     </aside>

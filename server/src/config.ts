@@ -17,4 +17,8 @@ export const config = {
   runbookLogsFile: path.join(ROOT, 'data', 'runbook-logs.json'),
   wallFile: path.join(ROOT, 'data', 'wall.json'),
   confessionalFile: path.join(ROOT, 'data', 'confessional.json'),
+  wikiDir: path.join(ROOT, 'data', 'wiki'),
+  trophiesFile: path.join(ROOT, 'data', 'trophies.json'),
+  capsulesFile: path.join(ROOT, 'data', 'capsules.json'),
+  oublietteDir: path.join(ROOT, 'data', 'oubliette'),
 };

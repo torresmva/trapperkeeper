@@ -2,16 +2,17 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { Entry, CollectionInfo } from '../../types';
-import { EntryCard } from './EntryCard';
+import { EntryCard, TYPE_CONFIG } from './EntryCard';
 import { NewEntryDialog } from './NewEntryDialog';
 import { TagBadge } from '../shared/TagBadge';
 import { format, parseISO } from 'date-fns';
 import {
   PixelSword, PixelGhost, PixelCoffee, PixelStar,
   PixelLightning, PixelSkull, PixelShield, PixelCrown, PixelScroll,
-  PixelBorder, PixelMusicNote,
+  PixelBorder, PixelMusicNote, PixelTrophy,
 } from '../shared/PixelArt';
 import { useRandomQuote, useEmptyQuotes } from '../../hooks/useQuotes';
+import { useSpace } from '../../contexts/SpaceContext';
 
 type ViewMode = 'list' | 'timeline' | 'digest';
 type FilterType = 'all' | 'daily' | 'weekly' | 'monthly' | 'meeting' | '1on1' | 'incident' | 'decision' | 'project-update';
@@ -87,6 +88,7 @@ export function EntryList() {
   const [digestLoading, setDigestLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { activeSpace } = useSpace();
   const subheading = useRandomQuote('entries', 'this is your story. keep writing.');
   const emptyQuotes = useEmptyQuotes('entries-empty', EMPTY_QUOTES_FALLBACK);
   const emptyQuote = useMemo(() => emptyQuotes[Math.floor(Math.random() * emptyQuotes.length)], [emptyQuotes]);
@@ -108,11 +110,16 @@ export function EntryList() {
       journalParams.archived = 'true';
       notesParams.archived = 'true';
     }
-    const countPromise = filter === 'all' && !showArchived
+    if (activeSpace) {
+      journalParams.space = activeSpace;
+      notesParams.space = activeSpace;
+    }
+    const countParams: Record<string, string> = activeSpace ? { space: activeSpace } : {};
+    const countPromise = filter === 'all' && !showArchived && !activeSpace
       ? null
       : Promise.all([
-          api.listEntries('journal', {}),
-          api.listEntries('notes', {}),
+          api.listEntries('journal', countParams),
+          api.listEntries('notes', countParams),
         ]);
 
     Promise.all([
@@ -135,7 +142,7 @@ export function EntryList() {
     }).catch(console.error).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [filter, showArchived]);
+  useEffect(() => { load(); }, [filter, showArchived, activeSpace]);
 
   // Load digest when switching to digest view
   useEffect(() => {
@@ -313,6 +320,9 @@ export function EntryList() {
           </div>
           <PixelBorder />
 
+          {/* Pinned entries strip */}
+          <PinnedStrip entries={entries} onSelect={navigateToEntry} />
+
           {/* Archive toggle */}
           <div style={{
             display: 'flex',
@@ -346,23 +356,7 @@ export function EntryList() {
           ) : entries.length === 0 ? (
             <EmptyState quote={emptyQuote} onNew={() => setShowNew(true)} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {entries.map(entry => (
-                <div
-                  key={entry.id}
-                  style={{
-                    opacity: (entry.meta as any).archived ? 0.45 : 1,
-                    transition: 'opacity 0.15s',
-                  }}
-                >
-                  <EntryCard
-                    entry={entry}
-                    isActive={false}
-                    onClick={() => navigateToEntry(entry)}
-                  />
-                </div>
-              ))}
-            </div>
+            <GroupedEntryList entries={entries} onSelect={navigateToEntry} />
           )}
         </>
       )}
@@ -615,6 +609,178 @@ export function EntryList() {
   );
 }
 
+function GroupedEntryList({ entries, onSelect }: { entries: Entry[]; onSelect: (entry: Entry) => void }) {
+  const groups: { label: string; date: string; dayOfWeek: string; entries: Entry[] }[] = [];
+  const today = new Date();
+  const todayStr = format(today, 'yyyy-MM-dd');
+  const yesterdayStr = format(new Date(today.getTime() - 86400000), 'yyyy-MM-dd');
+  const weekAgoStr = format(new Date(today.getTime() - 7 * 86400000), 'yyyy-MM-dd');
+
+  let currentGroup: typeof groups[0] | null = null;
+  let globalIndex = 0;
+
+  for (const entry of entries) {
+    const d = entry.meta.date;
+    let label: string;
+    if (d === todayStr) {
+      label = 'today';
+    } else if (d === yesterdayStr) {
+      label = 'yesterday';
+    } else if (d > weekAgoStr) {
+      label = format(parseISO(d), 'EEEE');
+    } else {
+      label = format(parseISO(d), 'MMM dd, yyyy');
+    }
+
+    if (!currentGroup || currentGroup.date !== d) {
+      currentGroup = { label, date: d, dayOfWeek: format(parseISO(d), 'EEE'), entries: [] };
+      groups.push(currentGroup);
+    }
+    currentGroup.entries.push(entry);
+  }
+
+  function typeSummary(groupEntries: Entry[]): React.ReactNode {
+    const counts: Record<string, number> = {};
+    for (const e of groupEntries) {
+      counts[e.meta.type] = (counts[e.meta.type] || 0) + 1;
+    }
+    const parts = Object.entries(counts).slice(0, 4);
+    return (
+      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+        {parts.map(([type, count]) => {
+          const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.note;
+          return (
+            <span key={type} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+              {cfg.icon(10)}
+              <span style={{
+                color: cfg.accent,
+                fontSize: '9px',
+                opacity: 0.6,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}>
+                {count > 1 ? `×${count}` : ''}
+              </span>
+            </span>
+          );
+        })}
+      </span>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {groups.map((group, gi) => {
+        const isToday = group.date === todayStr;
+        const isRecent = group.date >= weekAgoStr;
+        const groupAccent = isToday
+          ? 'var(--accent-primary)'
+          : isRecent
+            ? 'var(--accent-secondary)'
+            : 'var(--text-muted)';
+
+        const startIdx = globalIndex;
+        globalIndex += group.entries.length;
+
+        return (
+          <div key={group.date} style={{ marginTop: gi > 0 ? 2 : 0 }}>
+            {/* Date group header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0,
+              padding: '16px 0 6px',
+              position: 'relative',
+            }}>
+              {/* Left accent block — aligned with entry strip */}
+              <div style={{
+                width: isToday ? 5 : 3,
+                height: isToday ? 14 : 10,
+                flexShrink: 0,
+                background: groupAccent,
+                opacity: isToday ? 1 : 0.5,
+                imageRendering: 'pixelated' as const,
+                boxShadow: isToday ? `0 0 10px ${groupAccent}` : 'none',
+                marginRight: 10,
+                transition: 'all 0.2s',
+              }} />
+
+              {/* Day of week — short form for context */}
+              {isRecent && !isToday && group.date !== yesterdayStr && (
+                <span style={{
+                  fontSize: '9px',
+                  color: groupAccent,
+                  opacity: 0.35,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  marginRight: 6,
+                  minWidth: 24,
+                }}>
+                  {group.dayOfWeek}
+                </span>
+              )}
+
+              {/* Label */}
+              <span style={{
+                fontSize: isToday ? '11px' : '10px',
+                fontWeight: 700,
+                color: groupAccent,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                fontFamily: "'JetBrains Mono', monospace",
+                whiteSpace: 'nowrap',
+              }}>
+                {group.label}
+              </span>
+
+              {/* Scanline separator */}
+              <div style={{
+                flex: 1,
+                height: 0,
+                borderTop: isToday
+                  ? `1px solid ${groupAccent}`
+                  : `1px dashed ${groupAccent}`,
+                opacity: isToday ? 0.3 : 0.15,
+                margin: '0 10px',
+              }} />
+
+              {/* Type icon summary */}
+              {typeSummary(group.entries)}
+
+              {/* Count */}
+              <span style={{
+                fontSize: '9px',
+                color: groupAccent,
+                opacity: 0.35,
+                fontFamily: "'JetBrains Mono', monospace",
+                marginLeft: 8,
+                minWidth: 14,
+                textAlign: 'right',
+              }}>
+                {group.entries.length}
+              </span>
+            </div>
+
+            {/* Entries */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {group.entries.map((entry, ei) => (
+                <EntryCard
+                  key={entry.id}
+                  entry={entry}
+                  isActive={false}
+                  onClick={() => onSelect(entry)}
+                  compact={group.entries.length > 5}
+                  index={startIdx + ei}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function LoadingState() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '32px 0' }}>
@@ -639,6 +805,113 @@ function EmptyState({ quote, onNew }: { quote: { text: string; sub: string }; on
         {quote.sub}{' '}
         <span onClick={onNew} style={{ color: 'var(--accent-primary)', cursor: 'pointer' }}>+ new</span>
       </p>
+    </div>
+  );
+}
+
+function PinnedStrip({ entries, onSelect }: { entries: Entry[]; onSelect: (e: Entry) => void }) {
+  const [expanded, setExpanded] = useState(() => {
+    try { return localStorage.getItem('tk-pinned-expanded') !== 'false'; } catch { return true; }
+  });
+
+  const pinned = useMemo(
+    () => entries.filter(e => e.meta.pinnedInCollections && e.meta.pinnedInCollections.length > 0),
+    [entries]
+  );
+
+  if (pinned.length === 0) return null;
+
+  const toggle = () => {
+    const next = !expanded;
+    setExpanded(next);
+    localStorage.setItem('tk-pinned-expanded', String(next));
+  };
+
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <button
+        onClick={toggle}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          borderLeft: '2px solid var(--accent-tertiary)',
+          padding: '8px 10px',
+          cursor: 'pointer',
+          color: 'var(--accent-tertiary)',
+          fontSize: '9px',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          fontFamily: "'JetBrains Mono', monospace",
+        }}
+      >
+        <PixelTrophy size={10} color="var(--accent-tertiary)" />
+        <span>pinned</span>
+        <span style={{ opacity: 0.5, fontSize: '8px' }}>({pinned.length})</span>
+        <span style={{
+          marginLeft: 'auto',
+          fontSize: '8px',
+          transition: 'transform 0.15s',
+          transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+          display: 'inline-block',
+        }}>▸</span>
+      </button>
+
+      {expanded && (
+        <div style={{
+          display: 'flex',
+          gap: 8,
+          padding: '6px 0 6px 12px',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+        }}>
+          {pinned.map(entry => {
+            const cfg = TYPE_CONFIG[entry.meta.type] || TYPE_CONFIG.note;
+            return (
+              <button
+                key={entry.id}
+                onClick={() => onSelect(entry)}
+                style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 10px',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderLeft: `2px solid ${cfg.accent}`,
+                  cursor: 'pointer',
+                  maxWidth: 200,
+                  transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = cfg.accent; }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.border = '1px solid var(--border)';
+                  e.currentTarget.style.borderLeft = `2px solid ${cfg.accent}`;
+                }}
+              >
+                {cfg.icon(12)}
+                <span style={{
+                  fontSize: '11px',
+                  color: 'var(--text-primary)',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  textTransform: 'none',
+                  letterSpacing: '-0.01em',
+                }}>
+                  {entry.meta.title}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

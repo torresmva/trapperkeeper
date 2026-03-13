@@ -6,6 +6,9 @@ interface Props {
 }
 
 export function LivePreview({ content }: Props) {
+  // Strip any leaked frontmatter from body content
+  const cleaned = content.replace(/^---\n[\s\S]*?\n---\n*/m, '').replace(/^\w+:\s*\[?\]?\n---\n*/m, '');
+
   return (
     <div
       className="markdown-preview"
@@ -16,10 +19,10 @@ export function LivePreview({ content }: Props) {
         background: 'transparent',
       }}
     >
-      {content ? (
+      {cleaned ? (
         <>
-          <TableOfContents content={content} />
-          <MarkdownRenderer content={content} />
+          <TableOfContents content={cleaned} />
+          <MarkdownRenderer content={cleaned} />
         </>
       ) : (
         <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>

@@ -32,9 +32,16 @@ import standupRouter from './routes/standup';
 import runbooksRouter from './routes/runbooks';
 import wallRouter from './routes/wall';
 import confessionalRouter from './routes/confessional';
+import ghostsRouter from './routes/ghosts';
+import trophiesRouter from './routes/trophies';
+import wikiRouter from './routes/wiki';
+import capsulesRouter from './routes/capsules';
+import activityRouter from './routes/activity';
+import oublietteRouter from './routes/oubliette';
+import spacesRouter from './routes/spaces';
 
 async function ensureDataDirs() {
-  const dirs = [config.journalDir, config.notesDir, config.templatesDir, config.assetsDir];
+  const dirs = [config.journalDir, config.notesDir, config.templatesDir, config.assetsDir, config.wikiDir, config.oublietteDir];
   for (const dir of dirs) {
     await fs.mkdir(dir, { recursive: true });
   }
@@ -77,6 +84,13 @@ async function main() {
   app.use('/api/runbooks', runbooksRouter);
   app.use('/api/wall', wallRouter);
   app.use('/api/confessional', confessionalRouter);
+  app.use('/api/ghosts', ghostsRouter);
+  app.use('/api/trophies', trophiesRouter);
+  app.use('/api/wiki', wikiRouter);
+  app.use('/api/capsules', capsulesRouter);
+  app.use('/api/activity', activityRouter);
+  app.use('/api/oubliette', oublietteRouter);
+  app.use('/api/spaces', spacesRouter);
 
   // Serve client in production
   const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');

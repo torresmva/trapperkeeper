@@ -82,6 +82,16 @@ export function ConfessionalPage() {
     if (!passphrase) return;
     setError('');
     try {
+      if (!crypto.subtle) {
+        setError('encryption requires HTTPS or localhost — crypto.subtle is not available');
+        return;
+      }
+      if (entries.length === 0) {
+        // No entries yet — just unlock to allow creating
+        setDecrypted([]);
+        setUnlocked(true);
+        return;
+      }
       const results: DecryptedEntry[] = [];
       for (const entry of entries) {
         try {
@@ -94,8 +104,6 @@ export function ConfessionalPage() {
             modified: entry.modified,
           });
         } catch {
-          // Wrong passphrase for this entry — skip silently
-          // (entries can have different passphrases)
           results.push({
             id: entry.id,
             content: '[encrypted — different passphrase]',
@@ -107,34 +115,43 @@ export function ConfessionalPage() {
       }
       setDecrypted(results);
       setUnlocked(true);
-    } catch {
-      setError('decryption failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'decryption failed — are you on HTTPS?');
     }
   };
 
   const handleAdd = async () => {
     if (!newContent.trim() || !passphrase) return;
-    const encrypted = await encryptText(newContent, passphrase);
-    await api.createConfessional({
-      ...encrypted,
-      hint: newHint.trim() || undefined,
-    });
-    setNewContent('');
-    setNewHint('');
-    setShowAdd(false);
-    await loadEntries();
-    // Re-decrypt with current passphrase
-    const data = await api.listConfessional();
-    const results: DecryptedEntry[] = [];
-    for (const entry of data) {
-      try {
-        const content = await decryptText(entry.ciphertext, entry.iv, entry.salt, passphrase);
-        results.push({ id: entry.id, content, hint: entry.hint, created: entry.created, modified: entry.modified });
-      } catch {
-        results.push({ id: entry.id, content: '[encrypted — different passphrase]', hint: entry.hint, created: entry.created, modified: entry.modified });
+    setError('');
+    try {
+      if (!crypto.subtle) {
+        setError('encryption requires HTTPS or localhost — crypto.subtle is not available');
+        return;
       }
+      const encrypted = await encryptText(newContent, passphrase);
+      await api.createConfessional({
+        ...encrypted,
+        hint: newHint.trim() || undefined,
+      });
+      setNewContent('');
+      setNewHint('');
+      setShowAdd(false);
+      await loadEntries();
+      // Re-decrypt with current passphrase
+      const data = await api.listConfessional();
+      const results: DecryptedEntry[] = [];
+      for (const entry of data) {
+        try {
+          const content = await decryptText(entry.ciphertext, entry.iv, entry.salt, passphrase);
+          results.push({ id: entry.id, content, hint: entry.hint, created: entry.created, modified: entry.modified });
+        } catch {
+          results.push({ id: entry.id, content: '[encrypted — different passphrase]', hint: entry.hint, created: entry.created, modified: entry.modified });
+        }
+      }
+      setDecrypted(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'encryption failed — are you on HTTPS?');
     }
-    setDecrypted(results);
   };
 
   const handleDelete = async (id: string) => {
@@ -227,8 +244,9 @@ export function ConfessionalPage() {
             maxWidth: 300,
             textAlign: 'center',
           }}>
-            enter your passphrase to unlock. entries are encrypted with AES-256-GCM
-            — the server never sees your plaintext.
+            {entries.length > 0
+              ? 'enter your passphrase to unlock. entries are encrypted with AES-256-GCM — the server never sees your plaintext.'
+              : 'enter a passphrase to start. this will encrypt your entries with AES-256-GCM — the server never sees your plaintext.'}
           </p>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
             <input
@@ -263,7 +281,7 @@ export function ConfessionalPage() {
                 padding: '6px 14px',
               }}
             >
-              unlock
+              {entries.length > 0 ? 'unlock' : 'start'}
             </button>
           </div>
           {error && (
@@ -341,8 +359,11 @@ export function ConfessionalPage() {
                 <div style={{ fontSize: '9px', color: 'var(--text-muted)', opacity: 0.5 }}>
                   encrypted with your current passphrase. use the same one to read it later.
                 </div>
+                {error && (
+                  <p style={{ fontSize: '11px', color: 'var(--danger, var(--accent-tertiary))' }}>{error}</p>
+                )}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={() => setShowAdd(false)} style={cancelBtn}>cancel</button>
+                  <button onClick={() => { setShowAdd(false); setError(''); }} style={cancelBtn}>cancel</button>
                   <button onClick={handleAdd} disabled={!newContent.trim()} style={{
                     background: 'transparent',
                     border: '1px solid var(--accent-secondary)',

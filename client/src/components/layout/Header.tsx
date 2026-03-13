@@ -1,5 +1,6 @@
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { useLocation } from 'react-router-dom';
+import { useSpace } from '../../contexts/SpaceContext';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -24,6 +25,7 @@ function getBreadcrumb(pathname: string): string {
 export function Header({ theme, onToggleTheme, onQuickCapture, onLock }: Props) {
   const location = useLocation();
   const breadcrumb = getBreadcrumb(location.pathname);
+  const { activeSpace } = useSpace();
 
   return (
     <header
@@ -43,8 +45,26 @@ export function Header({ theme, onToggleTheme, onQuickCapture, onLock }: Props) 
         color: 'var(--text-muted)',
         letterSpacing: '0.04em',
         flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
       }}>
         {breadcrumb}
+        {activeSpace && (
+          <span style={{
+            fontSize: '9px',
+            letterSpacing: '0.06em',
+            color: 'var(--accent-primary)',
+            borderLeft: '1px solid var(--border)',
+            paddingLeft: 10,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            <span style={{ width: 5, height: 5, background: 'var(--accent-primary)', display: 'inline-block' }} />
+            {activeSpace}
+          </span>
+        )}
       </span>
 
       <button

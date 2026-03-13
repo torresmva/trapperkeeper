@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useSpace } from '../../contexts/SpaceContext';
 
 interface Props {
   open: boolean;
@@ -14,6 +15,7 @@ export function QuickCapture({ open, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+  const { activeSpace } = useSpace();
 
   useEffect(() => {
     if (open) {
@@ -33,6 +35,7 @@ export function QuickCapture({ open, onClose }: Props) {
         title: title || undefined,
         body,
         tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        space: activeSpace || undefined,
       });
       onClose();
       navigate(`/notes/${entry.id}`);

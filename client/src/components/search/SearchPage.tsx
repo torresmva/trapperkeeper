@@ -5,6 +5,7 @@ import { Entry, TagCount } from '../../types';
 import { EntryCard } from '../journal/EntryCard';
 import { TagBadge } from '../shared/TagBadge';
 import { PixelKey, PixelSkull } from '../shared/PixelArt';
+import { useSpace } from '../../contexts/SpaceContext';
 
 export function SearchPage() {
   const [query, setQuery] = useState('');
@@ -13,15 +14,16 @@ export function SearchPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const navigate = useNavigate();
+  const { activeSpace } = useSpace();
 
   useEffect(() => {
-    api.getTags().then(setTags).catch(console.error);
-  }, []);
+    api.getTags(activeSpace || undefined).then(setTags).catch(console.error);
+  }, [activeSpace]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (query || selectedTag) {
-        api.search(query, selectedTag || undefined)
+        api.search(query, selectedTag || undefined, activeSpace || undefined)
           .then(setResults)
           .catch(console.error)
           .finally(() => setSearched(true));
@@ -31,7 +33,7 @@ export function SearchPage() {
       }
     }, 300);
     return () => clearTimeout(timeout);
-  }, [query, selectedTag]);
+  }, [query, selectedTag, activeSpace]);
 
   return (
     <div style={{ maxWidth: 640 }}>

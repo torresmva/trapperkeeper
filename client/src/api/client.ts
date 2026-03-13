@@ -1,4 +1,4 @@
-import { Entry, EntryMeta, TagCount, CollectionInfo, Stats, Task, Receipt, Link, TKPromise, Snippet, Runbook, RunbookExecution, WallItem, ConfessionalEntry } from '../types';
+import { Entry, EntryMeta, TagCount, CollectionInfo, Stats, Task, Receipt, Link, TKPromise, Snippet, Runbook, RunbookExecution, WallItem, ConfessionalEntry, GhostEntry, RadarData, Trophy, WikiPage, WikiTreeNode, Capsule } from '../types';
 
 const BASE = '/api';
 
@@ -29,26 +29,45 @@ export const api = {
     request<{ success: boolean }>(`/entries/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   // Notes
-  listNotes: () => request<Entry[]>('/notes'),
-  quickNote: (data: { title?: string; body?: string; tags?: string[]; collections?: string[] }) =>
+  listNotes: (space?: string) => {
+    const qs = space ? `?space=${encodeURIComponent(space)}` : '';
+    return request<Entry[]>(`/notes${qs}`);
+  },
+  quickNote: (data: { title?: string; body?: string; tags?: string[]; collections?: string[]; space?: string }) =>
     request<Entry>('/notes/quick', { method: 'POST', body: JSON.stringify(data) }),
 
   // Search
-  search: (q: string, tag?: string) => {
+  search: (q: string, tag?: string, space?: string) => {
     const qs = new URLSearchParams();
     if (q) qs.set('q', q);
     if (tag) qs.set('tag', tag);
+    if (space) qs.set('space', space);
     return request<Entry[]>(`/search?${qs.toString()}`);
   },
-  getTags: () => request<TagCount[]>('/search/tags'),
+  getTags: (space?: string) => {
+    const qs = space ? `?space=${encodeURIComponent(space)}` : '';
+    return request<TagCount[]>(`/search/tags${qs}`);
+  },
 
   // Collections
-  listCollections: () => request<CollectionInfo[]>('/collections'),
-  getCollection: (name: string) => request<Entry[]>(`/collections/${encodeURIComponent(name)}`),
+  listCollections: (space?: string) => {
+    const qs = space ? `?space=${encodeURIComponent(space)}` : '';
+    return request<CollectionInfo[]>(`/collections${qs}`);
+  },
+  getCollection: (name: string, space?: string) => {
+    const qs = space ? `?space=${encodeURIComponent(space)}` : '';
+    return request<Entry[]>(`/collections/${encodeURIComponent(name)}${qs}`);
+  },
   getBacklinks: (id: string) => request<Entry[]>(`/collections/backlinks/${encodeURIComponent(id)}`),
 
+  // Spaces
+  getSpaces: () => request<{ spaces: string[] }>('/spaces'),
+
   // Stats
-  getStats: () => request<Stats>('/stats'),
+  getStats: (space?: string) => {
+    const qs = space ? `?space=${encodeURIComponent(space)}` : '';
+    return request<Stats>(`/stats${qs}`);
+  },
 
   // Templates
   listTemplates: () => request<string[]>('/templates'),
@@ -228,6 +247,50 @@ export const api = {
   deleteConfessional: (id: string) =>
     request<{ success: boolean }>(`/confessional/${id}`, { method: 'DELETE' }),
 
+  // Ghosts
+  getGhosts: (days?: number) => request<GhostEntry[]>(`/ghosts${days ? `?days=${days}` : ''}`),
+
+  // Radar
+  getRadar: (window?: number, by?: string, space?: string) => {
+    const params = new URLSearchParams();
+    if (window) params.set('window', String(window));
+    if (by) params.set('by', by);
+    if (space) params.set('space', space);
+    return request<RadarData>(`/stats/radar?${params}`);
+  },
+
+  // Trophies
+  getTrophies: () => request<Trophy[]>('/trophies'),
+  checkTrophies: () => request<{ unlocked: Trophy[] }>('/trophies/check', { method: 'POST' }),
+
+  // Wiki
+  listWikiPages: (space?: string) => {
+    const qs = space ? `?space=${encodeURIComponent(space)}` : '';
+    return request<WikiPage[]>(`/wiki${qs}`);
+  },
+  getWikiTree: (space?: string) => {
+    const qs = space ? `?space=${encodeURIComponent(space)}` : '';
+    return request<WikiTreeNode[]>(`/wiki/tree${qs}`);
+  },
+  getWikiPage: (slug: string) => request<WikiPage>(`/wiki/${encodeURIComponent(slug)}`),
+  createWikiPage: (data: { title: string; body?: string; parent?: string; tags?: string[]; space?: string }) =>
+    request<WikiPage>('/wiki', { method: 'POST', body: JSON.stringify(data) }),
+  updateWikiPage: (slug: string, data: { title?: string; body?: string; parent?: string; tags?: string[]; order?: number }) =>
+    request<WikiPage>(`/wiki/${encodeURIComponent(slug)}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteWikiPage: (slug: string) =>
+    request<{ success: boolean }>(`/wiki/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
+  bulkWikiAction: (data: { action: string; ids: string[]; parent?: string; tag?: string }) =>
+    request<{ success: boolean; updated: number }>('/wiki/bulk', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Capsules
+  listCapsules: () => request<Capsule[]>('/capsules'),
+  createCapsule: (data: { title: string; content: string; unlockDate: string }) =>
+    request<Capsule>('/capsules', { method: 'POST', body: JSON.stringify(data) }),
+  openCapsule: (id: string) =>
+    request<Capsule>(`/capsules/${id}/open`, { method: 'POST' }),
+  deleteCapsule: (id: string) =>
+    request<{ success: boolean }>(`/capsules/${id}`, { method: 'DELETE' }),
+
   // Standup
   getStandup: () => request<{ standup: string; yesterdayCount: number; taskCount: number }>('/standup'),
   getOnThisDay: () => request<{ label: string; date: string; entries: { id: string; title: string; type: string; category: string }[] }[]>('/standup/on-this-day'),
@@ -258,6 +321,15 @@ export const api = {
     pushed: boolean;
     commit?: { hash: string; date: string; message: string };
   }>('/git/sync', { method: 'POST', body: JSON.stringify({ message }) }),
+
+  // Oubliette
+  listOubliette: () => request<{ id: string; title: string; originalType: string; deletedAt: string; daysRemaining: number }[]>('/oubliette'),
+  restoreFromOubliette: (id: string) =>
+    request<{ success: boolean; restoredTo: string }>(`/oubliette/${id}/restore`, { method: 'POST' }),
+  deleteFromOubliette: (id: string) =>
+    request<{ success: boolean }>(`/oubliette/${id}`, { method: 'DELETE' }),
+  purgeOubliette: () =>
+    request<{ success: boolean; purged: number }>('/oubliette/purge', { method: 'POST' }),
 
   // Exports
   exportEntries: async (options: {

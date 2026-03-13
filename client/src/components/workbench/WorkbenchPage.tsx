@@ -8,6 +8,7 @@ import { EpochCalc } from './EpochCalc';
 import { CronBuilder } from './CronBuilder';
 import { PortRef } from './PortRef';
 import { RfcRef } from './RfcRef';
+import { DiagramEditor } from './DiagramEditor';
 
 const TOOLS = [
   { id: 'cidr', label: 'cidr' },
@@ -18,6 +19,7 @@ const TOOLS = [
   { id: 'cron', label: 'cron' },
   { id: 'ports', label: 'ports' },
   { id: 'rfcs', label: 'rfcs' },
+  { id: 'diagrams', label: 'diagrams' },
 ] as const;
 
 type ToolId = typeof TOOLS[number]['id'];
@@ -95,6 +97,7 @@ export function WorkbenchPage() {
         {active === 'cron' && <CronBuilder />}
         {active === 'ports' && <PortRef />}
         {active === 'rfcs' && <RfcRef />}
+        {active === 'diagrams' && <DiagramEditor />}
       </div>
     </div>
   );

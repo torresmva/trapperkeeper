@@ -12,11 +12,13 @@ router.get('/', async (req: Request, res: Response) => {
   if (!showArchived) {
     entries = entries.filter(e => !e.meta.archived);
   }
+  const space = req.query.space as string | undefined;
+  if (space) entries = entries.filter(e => (e.meta as any).space === space);
   res.json(entries);
 });
 
 router.post('/quick', async (req: Request, res: Response) => {
-  const { title, body, tags, collections } = req.body;
+  const { title, body, tags, collections, space } = req.body;
   const now = new Date();
   const meta: EntryMeta = {
     title: title || `Quick Note - ${now.toLocaleString()}`,
@@ -29,6 +31,7 @@ router.post('/quick', async (req: Request, res: Response) => {
     modified: now.toISOString(),
     pinned: false,
   };
+  if (space) (meta as any).space = space;
   const entry = await createEntry('notes', meta, body || '');
   markPendingWrite(entry.filePath);
   addToIndex(entry);

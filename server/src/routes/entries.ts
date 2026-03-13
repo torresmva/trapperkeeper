@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { listEntries, getEntry, createEntry, updateEntry, deleteEntry } from '../services/fileStore';
+import { listEntries, getEntry, createEntry, updateEntry } from '../services/fileStore';
 import { markPendingWrite } from '../services/watcher';
 import { addToIndex, removeFromIndex } from '../services/searchIndex';
 import path from 'path';
 import { config } from '../config';
+import { moveToOubliette } from './oubliette';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get('/', async (req: Request, res: Response) => {
   const to = req.query.to as string | undefined;
   const tag = req.query.tag as string | undefined;
   const collection = req.query.collection as string | undefined;
+  const space = req.query.space as string | undefined;
 
   let entries = await listEntries(category);
 
@@ -27,6 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
   if (to) entries = entries.filter(e => e.meta.date <= to);
   if (tag) entries = entries.filter(e => e.meta.tags.includes(tag));
   if (collection) entries = entries.filter(e => (e.meta.collections || []).includes(collection));
+  if (space) entries = entries.filter(e => (e.meta as any).space === space);
 
   res.json(entries);
 });
@@ -65,10 +68,17 @@ router.patch('/:id(*)/archive', async (req: Request, res: Response) => {
 });
 
 router.delete('/:id(*)', async (req: Request, res: Response) => {
-  removeFromIndex(req.params.id);
-  const deleted = await deleteEntry(req.params.id);
-  if (!deleted) return res.status(404).json({ error: 'Entry not found' });
-  res.json({ success: true });
+  const entry = await getEntry(req.params.id);
+  if (!entry) return res.status(404).json({ error: 'Entry not found' });
+
+  const originalType = entry.meta.category === 'notes' ? 'note' as const : 'entry' as const;
+  try {
+    await moveToOubliette(entry.filePath, originalType, entry.meta as any);
+    removeFromIndex(req.params.id);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to move to oubliette' });
+  }
 });
 
 export default router;

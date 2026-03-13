@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { Entry, CollectionInfo } from '../../types';
 import { EntryCard } from '../journal/EntryCard';
 import { PixelFolder, PixelStar, PixelBorder, PixelGhost } from '../shared/PixelArt';
+import { useSpace } from '../../contexts/SpaceContext';
 
 export function CollectionsPage() {
   const { name } = useParams<{ name?: string }>();
@@ -11,22 +12,23 @@ export function CollectionsPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { activeSpace } = useSpace();
 
   useEffect(() => {
-    api.listCollections().then(setCollections).catch(console.error);
-  }, []);
+    api.listCollections(activeSpace || undefined).then(setCollections).catch(console.error);
+  }, [activeSpace]);
 
   useEffect(() => {
     if (name) {
       setLoading(true);
-      api.getCollection(name)
+      api.getCollection(name, activeSpace || undefined)
         .then(setEntries)
         .catch(console.error)
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
-  }, [name]);
+  }, [name, activeSpace]);
 
   // Collection list view
   if (!name) {

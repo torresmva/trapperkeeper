@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import { EntryMeta } from '../../types';
+import { useSpace } from '../../contexts/SpaceContext';
 
 interface Props {
   open: boolean;
@@ -20,6 +21,7 @@ const allTypes = [
 ];
 
 export function NewEntryDialog({ open, onClose, onCreated }: Props) {
+  const { activeSpace } = useSpace();
   const [selectedType, setSelectedType] = useState('daily');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
@@ -73,6 +75,11 @@ export function NewEntryDialog({ open, onClose, onCreated }: Props) {
         category: typeInfo.category,
         tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         collections: collections ? collections.split(',').map(c => c.trim()).filter(Boolean) : [],
+        pinned: false,
+        archived: false,
+        pinnedInCollections: [],
+        links: [],
+        space: activeSpace || undefined,
         created: now.toISOString(),
         modified: now.toISOString(),
       };
@@ -156,6 +163,21 @@ export function NewEntryDialog({ open, onClose, onCreated }: Props) {
           <label style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>collections</label>
           <input placeholder="e.g. impact, meetings" value={collections} onChange={e => setCollections(e.target.value)} />
         </div>
+
+        {activeSpace && (
+          <div style={{
+            fontSize: '10px',
+            color: 'var(--accent-primary)',
+            marginBottom: 12,
+            letterSpacing: '0.04em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}>
+            <span style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>space</span>
+            <span>{activeSpace}</span>
+          </div>
+        )}
 
         {templateLoaded && (
           <div style={{

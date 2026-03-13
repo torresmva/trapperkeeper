@@ -7,6 +7,7 @@ const router = Router();
 router.get('/', async (req: Request, res: Response) => {
   const q = req.query.q as string;
   const tag = req.query.tag as string | undefined;
+  const space = req.query.space as string | undefined;
 
   const showArchived = req.query.archived === 'true';
 
@@ -20,7 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
 
   if (tag && !q) {
     const all = await getAllEntries();
-    const filtered = all.filter(e => e.meta.tags.includes(tag) && (showArchived || !e.meta.archived));
+    const filtered = all.filter(e => e.meta.tags.includes(tag) && (showArchived || !e.meta.archived) && (!space || (e.meta as any).space === space));
     return res.json(filtered);
   }
 
@@ -30,16 +31,19 @@ router.get('/', async (req: Request, res: Response) => {
     if (entry) {
       if (tag && !entry.meta.tags.includes(tag)) continue;
       if (!showArchived && entry.meta.archived) continue;
+      if (space && (entry.meta as any).space !== space) continue;
       entries.push(entry);
     }
   }
   res.json(entries);
 });
 
-router.get('/tags', async (_req: Request, res: Response) => {
+router.get('/tags', async (req: Request, res: Response) => {
+  const space = req.query.space as string | undefined;
   const all = await getAllEntries();
+  const filtered = space ? all.filter(e => (e.meta as any).space === space) : all;
   const tagCounts: Record<string, number> = {};
-  for (const entry of all) {
+  for (const entry of filtered) {
     for (const tag of entry.meta.tags) {
       tagCounts[tag] = (tagCounts[tag] || 0) + 1;
     }

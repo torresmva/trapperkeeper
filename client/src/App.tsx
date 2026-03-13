@@ -16,7 +16,14 @@ import { KeeperPage } from './components/keeper/KeeperPage';
 import { WallPage } from './components/wall/WallPage';
 import { ConfessionalPage } from './components/confessional/ConfessionalPage';
 import { WorkbenchPage } from './components/workbench/WorkbenchPage';
+import { WikiPage } from './components/wiki/WikiPage';
+import { CapsulesPage } from './components/capsules/CapsulesPage';
+import { ActivityPage } from './components/activity/ActivityPage';
+import { TemplatesPage } from './components/templates/TemplatesPage';
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
+import { CommandPalette } from './components/shared/CommandPalette';
+import { OubliettePage } from './components/oubliette/OubliettePage';
+import { SpaceProvider } from './contexts/SpaceContext';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -43,12 +50,33 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Restore saved accent color on mount
+  // Listen for command palette quick capture action
   useEffect(() => {
-    const saved = localStorage.getItem('tk-accent');
-    if (saved) {
-      document.documentElement.style.setProperty('--accent-primary', saved);
-      document.documentElement.style.setProperty('--glow', `${saved}15`);
+    const handler = () => setQuickCaptureOpen(true);
+    window.addEventListener('tk-open-capture', handler);
+    return () => window.removeEventListener('tk-open-capture', handler);
+  }, []);
+
+  // Restore saved accent color and theme variant on mount
+  useEffect(() => {
+    // Theme variant takes priority over plain accent
+    const variant = localStorage.getItem('tk-theme-variant');
+    if (variant && variant !== 'default') {
+      // Will be applied by AccentPicker's applyThemeVariant
+      import('./styles/theme').then(({ themeVariants }) => {
+        const v = themeVariants?.find((t: any) => t.name === variant);
+        if (v) {
+          for (const [key, value] of Object.entries(v.overrides)) {
+            document.documentElement.style.setProperty(key, value as string);
+          }
+        }
+      });
+    } else {
+      const saved = localStorage.getItem('tk-accent');
+      if (saved) {
+        document.documentElement.style.setProperty('--accent-primary', saved);
+        document.documentElement.style.setProperty('--glow', `${saved}15`);
+      }
     }
   }, []);
 
@@ -84,6 +112,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+    <SpaceProvider>
       <Routes>
         <Route
           element={
@@ -109,7 +138,13 @@ export default function App() {
           <Route path="/wall" element={<WallPage />} />
           <Route path="/confessional" element={<ConfessionalPage />} />
           <Route path="/workbench" element={<WorkbenchPage />} />
+          <Route path="/wiki" element={<WikiPage />} />
+          <Route path="/wiki/:slug" element={<WikiPage />} />
+          <Route path="/capsules" element={<CapsulesPage />} />
+          <Route path="/activity" element={<ActivityPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/exports" element={<ExportPage />} />
+          <Route path="/oubliette" element={<OubliettePage />} />
 
           {/* Redirects from old routes */}
           <Route path="/timeline" element={<Navigate to="/entries?view=timeline" replace />} />
@@ -123,8 +158,10 @@ export default function App() {
         </Route>
       </Routes>
       <QuickCapture open={quickCaptureOpen} onClose={() => setQuickCaptureOpen(false)} />
+      <CommandPalette />
       <KeyboardShortcuts />
       <MobileNav onCapture={() => setQuickCaptureOpen(true)} />
+    </SpaceProvider>
     </BrowserRouter>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { Entry } from '../../types';
@@ -10,6 +10,24 @@ import { PixelStar, PixelGhost } from '../shared/PixelArt';
 import { AudioRecorder } from '../shared/AudioRecorder';
 import { WordCount } from '../shared/WordCount';
 import { useAutoSave } from '../../hooks/useAutoSave';
+import { useSpace } from '../../contexts/SpaceContext';
+
+function buildFullMarkdown(meta: Record<string, any>, tags: string[], collections: string[], pinnedIn: string[], body: string): string {
+  const fm = ['---'];
+  fm.push(`title: "${meta.title || ''}"`);
+  fm.push(`date: ${meta.date || ''}`);
+  fm.push(`type: ${meta.type || ''}`);
+  fm.push(`category: ${meta.category || ''}`);
+  if (tags.length > 0) fm.push(`tags: [${tags.join(', ')}]`);
+  if (collections.length > 0) fm.push(`collections: [${collections.join(', ')}]`);
+  if (pinnedIn.length > 0) fm.push(`pinnedInCollections: [${pinnedIn.join(', ')}]`);
+  if (meta.space) fm.push(`space: ${meta.space}`);
+  if (meta.archived) fm.push(`archived: true`);
+  fm.push(`created: ${meta.created || ''}`);
+  fm.push(`modified: ${meta.modified || ''}`);
+  fm.push('---', '', body);
+  return fm.join('\n');
+}
 
 export function EntryEditor() {
   const { '*': id } = useParams();
@@ -19,6 +37,7 @@ export function EntryEditor() {
   const [tags, setTags] = useState<string[]>([]);
   const [collections, setCollections] = useState<string[]>([]);
   const [pinnedIn, setPinnedIn] = useState<string[]>([]);
+  const [entrySpace, setEntrySpace] = useState<string | undefined>(undefined);
   const [newTag, setNewTag] = useState('');
   const [newCollection, setNewCollection] = useState('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
@@ -32,6 +51,7 @@ export function EntryEditor() {
   const [archived, setArchived] = useState(false);
   const [archiveFeedback, setArchiveFeedback] = useState(false);
   const [dupeFeedback, setDupeFeedback] = useState(false);
+  const { spaces, addSpace } = useSpace();
 
   useEffect(() => {
     if (!id) return;
@@ -47,6 +67,7 @@ export function EntryEditor() {
         setCollections(e.meta.collections || []);
         setPinnedIn(e.meta.pinnedInCollections || []);
         setArchived(!!(e.meta as any).archived);
+        setEntrySpace(e.meta.space || undefined);
       }
       setBacklinks(bl);
     }).catch(console.error).finally(() => setLoading(false));
@@ -61,15 +82,16 @@ export function EntryEditor() {
         tags,
         collections,
         pinnedInCollections: pinnedIn,
+        space: entrySpace,
         modified: new Date().toISOString(),
       }, body);
       setSaveStatus('saved');
     } catch {
       setSaveStatus('unsaved');
     }
-  }, [entry, id, body, tags, collections, pinnedIn]);
+  }, [entry, id, body, tags, collections, pinnedIn, entrySpace]);
 
-  useAutoSave(save, [body, tags, collections, pinnedIn]);
+  useAutoSave(save, [body, tags, collections, pinnedIn, entrySpace]);
 
   const markUnsaved = () => setSaveStatus('unsaved');
 
@@ -99,13 +121,17 @@ export function EntryEditor() {
     markUnsaved();
   };
 
+  const fullMarkdown = useMemo(() => {
+    if (!entry) return body;
+    return buildFullMarkdown(entry.meta, tags, collections, pinnedIn, body);
+  }, [entry, body, tags, collections, pinnedIn]);
+
   const handleCopyMd = async () => {
     try {
-      await navigator.clipboard.writeText(body);
+      await navigator.clipboard.writeText(fullMarkdown);
     } catch {
-      // Fallback for non-HTTPS or denied permissions
       const textarea = document.createElement('textarea');
-      textarea.value = body;
+      textarea.value = fullMarkdown;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -119,7 +145,6 @@ export function EntryEditor() {
 
   const handleArchive = async () => {
     if (!id) return;
-    const action = archived ? 'unarchive' : 'archive';
     if (!archived && !confirm(`Archive this entry? It will be hidden from lists.`)) return;
     try {
       const res = await fetch(`/api/entries/${encodeURIComponent(id)}/archive`, { method: 'PATCH' });
@@ -131,7 +156,7 @@ export function EntryEditor() {
         setTimeout(() => setArchiveFeedback(false), 1500);
       }
     } catch (err) {
-      console.error(`Failed to ${action} entry:`, err);
+      console.error('Failed to archive entry:', err);
     }
   };
 
@@ -143,6 +168,7 @@ export function EntryEditor() {
         meta: {
           ...entry.meta,
           title: `${entry.meta.title} (copy)`,
+          space: entrySpace,
           created: now,
           modified: now,
         },
@@ -189,7 +215,30 @@ export function EntryEditor() {
     return <div style={{ color: 'var(--text-muted)', fontSize: '12px', padding: 40 }}>entry not found</div>;
   }
 
-  const statusColor = saveStatus === 'saved' ? 'var(--success)' : saveStatus === 'saving' ? 'var(--accent-tertiary)' : 'var(--text-muted)';
+  const statusColor = saveStatus === 'saved' ? 'var(--accent-green)' : saveStatus === 'saving' ? 'var(--accent-tertiary)' : 'var(--text-muted)';
+  const btnColor = 'var(--text-primary)';
+
+  const handleUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = async () => {
+      if (!input.files) return;
+      for (const file of Array.from(input.files)) {
+        try {
+          const result = await api.uploadImage(file);
+          const isImage = file.type.startsWith('image/');
+          const link = isImage
+            ? `\n![${file.name}](/api/assets/files/${result.filename})\n`
+            : `\n[${file.name}](/api/assets/files/${result.filename})\n`;
+          handleBodyChange(body + link);
+        } catch (err) {
+          console.error('Upload failed:', err);
+        }
+      }
+    };
+    input.click();
+  };
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -197,7 +246,7 @@ export function EntryEditor() {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
         paddingBottom: 10,
         borderBottom: '1px solid var(--border)',
         marginBottom: 10,
@@ -205,7 +254,7 @@ export function EntryEditor() {
       }}>
         <button
           onClick={() => navigate('/entries')}
-          style={{ color: 'var(--text-muted)', fontSize: '11px', padding: '2px 0', background: 'transparent', textTransform: 'none' }}
+          style={{ color: btnColor, fontSize: '11px', padding: '2px 0', background: 'transparent', textTransform: 'none' }}
         >
           {'<-'} back
         </button>
@@ -237,7 +286,7 @@ export function EntryEditor() {
         <div style={{ display: 'flex', gap: 0, border: '1px solid var(--border)' }}>
           {(['editor', 'split', 'preview'] as const).map(m => (
             <button key={m} onClick={() => setViewMode(m)} style={{
-              color: viewMode === m ? 'var(--accent-primary)' : 'var(--text-muted)',
+              color: viewMode === m ? 'var(--accent-primary)' : btnColor,
               fontSize: '10px', padding: '3px 8px', background: 'transparent',
               borderRight: m !== 'preview' ? '1px solid var(--border)' : 'none',
               textTransform: 'none',
@@ -248,14 +297,14 @@ export function EntryEditor() {
         </div>
 
         <button onClick={() => setFullPreview(true)} style={{
-          color: 'var(--text-muted)', fontSize: '10px', padding: '3px 8px',
+          color: btnColor, fontSize: '10px', padding: '3px 8px',
           border: '1px solid var(--border)', background: 'transparent', textTransform: 'none',
         }}>
-          full <kbd style={{ fontSize: '8px', opacity: 0.5, marginLeft: 2 }}>^P</kbd>
+          full <kbd style={{ fontSize: '8px', opacity: 0.6, marginLeft: 2 }}>^P</kbd>
         </button>
 
         <button onClick={handleCopyMd} style={{
-          color: copyFeedback ? 'var(--success)' : 'var(--text-muted)',
+          color: copyFeedback ? 'var(--accent-green)' : btnColor,
           fontSize: '10px', padding: '3px 8px', border: '1px solid var(--border)',
           background: 'transparent', textTransform: 'none',
           transition: 'color 0.15s',
@@ -264,7 +313,7 @@ export function EntryEditor() {
         </button>
 
         <button onClick={handleDuplicate} style={{
-          color: dupeFeedback ? 'var(--success)' : 'var(--text-muted)',
+          color: dupeFeedback ? 'var(--accent-green)' : btnColor,
           fontSize: '10px', padding: '3px 8px', border: '1px solid var(--border)',
           background: 'transparent', textTransform: 'none',
           transition: 'color 0.15s',
@@ -273,7 +322,7 @@ export function EntryEditor() {
         </button>
 
         <button onClick={handleArchive} style={{
-          color: archiveFeedback ? 'var(--success)' : archived ? 'var(--accent-tertiary)' : 'var(--text-muted)',
+          color: archiveFeedback ? 'var(--accent-green)' : archived ? 'var(--accent-tertiary)' : btnColor,
           fontSize: '10px', padding: '3px 8px',
           border: '1px solid var(--border)', background: 'transparent', textTransform: 'none',
         }}>
@@ -282,7 +331,7 @@ export function EntryEditor() {
 
         <button onClick={handleDelete} style={{
           color: 'var(--danger)', fontSize: '10px', padding: '3px 8px',
-          background: 'transparent', textTransform: 'none', opacity: 0.5,
+          border: '1px solid var(--border)', background: 'transparent', textTransform: 'none',
         }}>
           del
         </button>
@@ -291,6 +340,13 @@ export function EntryEditor() {
           const audioTag = `\n\n<audio controls src="${url}"></audio>\n`;
           handleBodyChange(body + audioTag);
         }} />
+
+        <button onClick={handleUpload} style={{
+          color: btnColor, fontSize: '10px', padding: '3px 8px',
+          border: '1px solid var(--border)', background: 'transparent', textTransform: 'none',
+        }}>
+          upload
+        </button>
       </div>
 
       {archived && (
@@ -304,16 +360,94 @@ export function EntryEditor() {
           color: 'var(--accent-tertiary)',
           letterSpacing: '0.02em',
         }}>
-          This entry is archived
+          this entry is archived
         </div>
       )}
+
+      {/* Metadata row: type, date, space */}
+      <div style={{
+        display: 'flex',
+        gap: 16,
+        paddingBottom: 8,
+        marginBottom: 8,
+        borderBottom: '1px solid var(--border)',
+        fontSize: '10px',
+        color: 'var(--text-secondary)',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+      }}>
+        <span>
+          <span style={{ letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>type</span>
+          <span style={{ color: 'var(--accent-primary)' }}>{entry.meta.type}</span>
+        </span>
+        <span>
+          <span style={{ letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>date</span>
+          {entry.meta.date}
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>space</span>
+          <select
+            value={entrySpace || ''}
+            onChange={e => {
+              const val = e.target.value || undefined;
+              setEntrySpace(val);
+              markUnsaved();
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              borderBottom: '1px solid var(--border)',
+              color: entrySpace ? 'var(--accent-primary)' : 'var(--text-muted)',
+              fontSize: '10px',
+              fontFamily: "'JetBrains Mono', monospace",
+              padding: '0 2px',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="" style={{ background: 'var(--bg-primary)' }}>none</option>
+            {spaces.map(s => (
+              <option key={s} value={s} style={{ background: 'var(--bg-primary)' }}>{s}</option>
+            ))}
+          </select>
+          <input
+            placeholder="+ new"
+            style={{
+              width: 44,
+              background: 'transparent',
+              border: 'none',
+              borderBottom: '1px solid var(--border)',
+              color: 'var(--text-muted)',
+              fontSize: '10px',
+              fontFamily: "'JetBrains Mono', monospace",
+              padding: '0 2px',
+              outline: 'none',
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                const val = (e.target as HTMLInputElement).value.trim().toLowerCase();
+                if (val) {
+                  addSpace(val);
+                  setEntrySpace(val);
+                  markUnsaved();
+                  (e.target as HTMLInputElement).value = '';
+                }
+              }
+            }}
+          />
+        </span>
+        <span>
+          <span style={{ letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>created</span>
+          {new Date(entry.meta.created).toLocaleString()}
+        </span>
+      </div>
 
       {/* Tags + Collections row */}
       <div style={{
         display: 'flex',
         gap: 16,
-        paddingBottom: 10,
-        marginBottom: 10,
+        paddingBottom: 8,
+        marginBottom: 8,
         borderBottom: '1px solid var(--border)',
         flexWrap: 'wrap',
         alignItems: 'center',
