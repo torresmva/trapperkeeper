@@ -14,7 +14,7 @@ export function MainLayout({ theme, onToggleTheme, onQuickCapture }: Props) {
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Header theme={theme} onToggleTheme={onToggleTheme} onQuickCapture={onQuickCapture} />
-        <main style={{
+        <main className="main-content" style={{
           flex: 1,
           overflow: 'auto',
           padding: '28px 32px',

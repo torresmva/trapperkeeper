@@ -347,7 +347,14 @@ h1, h2, h3, h4, h5, h6 {
 
   .main-content {
     margin-left: 0 !important;
-    padding: 12px !important;
+    padding: 12px 12px calc(60px + env(safe-area-inset-bottom, 0px)) 12px !important;
+  }
+
+  /* Header needs safe-area top padding for notch */
+  header {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    height: calc(44px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(44px + env(safe-area-inset-top, 0px)) !important;
   }
 
   /* Stack split view vertically */
@@ -385,9 +392,17 @@ h1, h2, h3, h4, h5, h6 {
     display: flex !important;
   }
 
-  /* Add bottom padding to prevent content hidden behind nav */
-  body {
-    padding-bottom: 60px;
+  /* Body padding not needed — main-content handles nav clearance */
+
+  /* iOS rubber-band overscroll background */
+  html {
+    background: var(--bg-primary);
+  }
+
+  /* Workbench tool tabs scroll horizontally on mobile */
+  .workbench-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

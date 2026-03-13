@@ -14,6 +14,7 @@ import { CollectionsPage } from './components/collections/CollectionsPage';
 import { KeeperPage } from './components/keeper/KeeperPage';
 import { WallPage } from './components/wall/WallPage';
 import { ConfessionalPage } from './components/confessional/ConfessionalPage';
+import { WorkbenchPage } from './components/workbench/WorkbenchPage';
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
 
 export default function App() {
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="/keeper" element={<KeeperPage />} />
           <Route path="/wall" element={<WallPage />} />
           <Route path="/confessional" element={<ConfessionalPage />} />
+          <Route path="/workbench" element={<WorkbenchPage />} />
           <Route path="/exports" element={<ExportPage />} />
 
           {/* Redirects from old routes */}

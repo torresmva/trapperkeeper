@@ -25,8 +25,9 @@ const navItems = [
   { to: '/keeper', label: 'keeper', shortcut: '4' },
   { to: '/wall', label: 'the wall', shortcut: '5' },
   { to: '/confessional', label: 'confessional', shortcut: '6' },
-  { to: '/search', label: 'search', shortcut: '7' },
-  { to: '/exports', label: 'export', shortcut: '8' },
+  { to: '/workbench', label: 'workbench', shortcut: '7' },
+  { to: '/search', label: 'search', shortcut: '8' },
+  { to: '/exports', label: 'export', shortcut: '9' },
 ];
 
 export function Sidebar() {
@@ -37,6 +38,7 @@ export function Sidebar() {
 
   return (
     <aside
+      className="sidebar-rail"
       style={{
         width: collapsed ? 48 : 200,
         minWidth: collapsed ? 48 : 200,
