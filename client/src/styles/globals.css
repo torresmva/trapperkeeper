@@ -424,6 +424,19 @@ h1, h2, h3, h4, h5, h6 {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Briefing page responsive */
+  .briefing-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .briefing-news-panel {
+    grid-column: span 1 !important;
+  }
+
+  .briefing-page {
+    max-width: 100% !important;
+  }
 }
 
 @media (max-width: 480px) {

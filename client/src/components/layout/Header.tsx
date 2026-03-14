@@ -17,6 +17,7 @@ function getBreadcrumb(pathname: string): string {
   if (pathname === '/collections') return 'collections';
   if (pathname === '/timeline') return 'timeline';
   if (pathname === '/search') return 'search';
+  if (pathname === '/briefing') return 'the wire';
   if (pathname === '/stats') return 'dashboard';
   if (pathname === '/exports') return 'export';
   return '';

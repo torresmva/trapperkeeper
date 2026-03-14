@@ -98,6 +98,7 @@ export function CommandPalette() {
   // Build all items
   const allItems = useMemo((): CommandItem[] => {
     const nav: CommandItem[] = [
+      { id: 'nav-wire', label: 'the wire', category: 'navigate', action: () => navigate('/briefing') },
       { id: 'nav-entries', label: 'entries', category: 'navigate', action: () => navigate('/entries') },
       { id: 'nav-wiki', label: 'wiki', category: 'navigate', action: () => navigate('/wiki') },
       { id: 'nav-collections', label: 'collections', category: 'navigate', action: () => navigate('/collections') },

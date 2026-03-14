@@ -18,7 +18,10 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const topItem: NavItem = { to: '/stats', label: 'dashboard' };
+const topItems: NavItem[] = [
+  { to: '/stats', label: 'dashboard' },
+  { to: '/briefing', label: 'the wire' },
+];
 
 const navGroups: NavGroup[] = [
   {
@@ -112,7 +115,8 @@ export function Sidebar() {
   };
 
   const isActive = (to: string) => {
-    if (to === '/stats') return location.pathname === '/stats' || location.pathname === '/';
+    if (to === '/briefing') return location.pathname === '/briefing' || location.pathname === '/';
+    if (to === '/stats') return location.pathname === '/stats';
     return location.pathname.startsWith(to);
   };
 
@@ -161,7 +165,7 @@ export function Sidebar() {
         }}
       >
         <div
-          onClick={() => navigate('/stats')}
+          onClick={() => navigate('/briefing')}
           style={{ cursor: 'pointer' }}
         >
           <div style={{
@@ -334,11 +338,13 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
-        {/* Dashboard — top level */}
-        <NavLink to={topItem.to} style={linkStyle(topItem.to, false)}>
-          {!collapsed && topItem.label}
-          {collapsed && <span style={{ fontSize: '10px' }}>d</span>}
-        </NavLink>
+        {/* Top-level nav */}
+        {topItems.map(item => (
+          <NavLink key={item.to} to={item.to} style={linkStyle(item.to, false)}>
+            {!collapsed && item.label}
+            {collapsed && <span style={{ fontSize: '10px' }}>{item.label.charAt(0)}</span>}
+          </NavLink>
+        ))}
 
         {/* Grouped items */}
         {navGroups.map(group => {

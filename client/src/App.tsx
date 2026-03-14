@@ -23,6 +23,7 @@ import { TemplatesPage } from './components/templates/TemplatesPage';
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
 import { CommandPalette } from './components/shared/CommandPalette';
 import { OubliettePage } from './components/oubliette/OubliettePage';
+import { BriefingPage } from './components/briefing/BriefingPage';
 import { SpaceProvider } from './contexts/SpaceContext';
 
 export default function App() {
@@ -124,7 +125,8 @@ export default function App() {
             />
           }
         >
-          <Route path="/" element={<Navigate to="/stats" replace />} />
+          <Route path="/" element={<Navigate to="/briefing" replace />} />
+          <Route path="/briefing" element={<BriefingPage />} />
           <Route path="/entries" element={<EntryList />} />
           <Route path="/journal" element={<Navigate to="/entries" replace />} />
           <Route path="/journal/*" element={<EntryEditor />} />

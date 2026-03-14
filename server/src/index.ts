@@ -39,6 +39,7 @@ import capsulesRouter from './routes/capsules';
 import activityRouter from './routes/activity';
 import oublietteRouter from './routes/oubliette';
 import spacesRouter from './routes/spaces';
+import briefingRouter from './routes/briefing';
 
 async function ensureDataDirs() {
   const dirs = [config.journalDir, config.notesDir, config.templatesDir, config.assetsDir, config.wikiDir, config.oublietteDir];
@@ -91,6 +92,7 @@ async function main() {
   app.use('/api/activity', activityRouter);
   app.use('/api/oubliette', oublietteRouter);
   app.use('/api/spaces', spacesRouter);
+  app.use('/api/briefing', briefingRouter);
 
   // Serve client in production
   const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');

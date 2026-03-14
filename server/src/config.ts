@@ -21,4 +21,6 @@ export const config = {
   trophiesFile: path.join(ROOT, 'data', 'trophies.json'),
   capsulesFile: path.join(ROOT, 'data', 'capsules.json'),
   oublietteDir: path.join(ROOT, 'data', 'oubliette'),
+  wireServicesFile: path.join(ROOT, 'data', 'wire-services.json'),
+  wireConfigFile: path.join(ROOT, 'data', 'wire-config.json'),
 };

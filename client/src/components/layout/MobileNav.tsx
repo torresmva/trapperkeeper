@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSpace } from '../../contexts/SpaceContext';
 
 const PRIMARY_NAV = [
-  { label: 'home', path: '/stats', icon: '◆' },
+  { label: 'wire', path: '/briefing', icon: '◆' },
   { label: 'entries', path: '/entries', icon: '▤' },
   { label: 'new', path: '__capture__', icon: '+' },
   { label: 'keeper', path: '/keeper', icon: '▦' },
@@ -10,6 +11,7 @@ const PRIMARY_NAV = [
 ];
 
 const MORE_NAV = [
+  { label: 'dashboard', path: '/stats', icon: '◇' },
   { label: 'collections', path: '/collections', icon: '▧' },
   { label: 'wiki', path: '/wiki', icon: '▤' },
   { label: 'wall', path: '/wall', icon: '▨' },
@@ -31,6 +33,7 @@ export function MobileNav({ onCapture }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { activeSpace, setActiveSpace, spaces } = useSpace();
 
   // Check if current route is in the "more" menu
   const isMoreActive = MORE_NAV.some(item => location.pathname.startsWith(item.path));
@@ -72,35 +75,90 @@ export function MobileNav({ onCapture }: Props) {
           background: 'var(--bg-secondary)',
           borderTop: '1px solid var(--border)',
           zIndex: 2001,
-          padding: '8px 0',
+          padding: '0',
+          maxHeight: '60vh',
+          overflowY: 'auto',
         }}>
-          {MORE_NAV.map(item => {
-            const isActive = location.pathname.startsWith(item.path);
-            return (
+          {/* Space switcher */}
+          {spaces.length > 0 && (
+            <div style={{
+              display: 'flex',
+              gap: 0,
+              borderBottom: '1px solid var(--border)',
+              padding: '0',
+            }}>
               <button
-                key={item.label}
-                onClick={() => handleTap(item.path)}
+                onClick={() => { setActiveSpace(null); }}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  width: '100%',
+                  flex: 1,
+                  padding: '10px 0',
                   background: 'transparent',
                   border: 'none',
-                  borderLeft: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                  color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                  padding: '12px 20px',
-                  fontSize: '13px',
+                  borderBottom: !activeSpace ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                  color: !activeSpace ? 'var(--accent-primary)' : 'var(--text-muted)',
+                  fontSize: '10px',
                   fontFamily: "'JetBrains Mono', monospace",
+                  letterSpacing: '0.08em',
                   cursor: 'pointer',
-                  textAlign: 'left',
+                  textTransform: 'lowercase',
                 }}
               >
-                <span style={{ fontSize: '14px', width: 20, textAlign: 'center' }}>{item.icon}</span>
-                {item.label}
+                all
               </button>
-            );
-          })}
+              {spaces.map(s => (
+                <button
+                  key={s}
+                  onClick={() => { setActiveSpace(s); }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: activeSpace === s ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: activeSpace === s ? 'var(--accent-primary)' : 'var(--text-muted)',
+                    fontSize: '10px',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    letterSpacing: '0.08em',
+                    cursor: 'pointer',
+                    textTransform: 'lowercase',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Nav items */}
+          <div style={{ padding: '8px 0' }}>
+            {MORE_NAV.map(item => {
+              const isActive = location.pathname.startsWith(item.path);
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => handleTap(item.path)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    borderLeft: isActive ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                    color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    padding: '12px 20px',
+                    fontSize: '13px',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ fontSize: '14px', width: 20, textAlign: 'center' }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -123,7 +181,11 @@ export function MobileNav({ onCapture }: Props) {
         {PRIMARY_NAV.map(item => {
           const isCapture = item.path === '__capture__';
           const isMore = item.path === '__more__';
-          const isActive = !isCapture && !isMore && location.pathname.startsWith(item.path);
+          const isActive = !isCapture && !isMore && (
+            item.path === '/briefing'
+              ? (location.pathname === '/briefing' || location.pathname === '/')
+              : location.pathname.startsWith(item.path)
+          );
           const isMoreHighlight = isMore && (moreOpen || isMoreActive);
 
           return (
