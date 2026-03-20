@@ -248,17 +248,20 @@ async function restartContainer(_cfg: UpdateConfig): Promise<void> {
   // The compose file path on the HOST (not inside the container)
   const hostCompose = `${hostDir}/docker-compose.yml`;
 
-  // Spawn a sidecar container that outlives this one
+  // Spawn a sidecar container that outlives this one.
+  // Mount both the docker socket and the host compose file.
   const script = [
     'sleep 3',
     'docker stop trapperkeeper 2>/dev/null || true',
     'docker rm trapperkeeper 2>/dev/null || true',
-    `docker compose -f ${hostCompose} up -d --no-build`,
+    `docker compose -f /compose/docker-compose.yml up -d --no-build`,
   ].join(' && ');
 
   await execAsync(
     `docker run -d --rm --name tk-updater ` +
     `-v /var/run/docker.sock:/var/run/docker.sock ` +
+    `-v ${hostDir}:/compose:ro ` +
+    `-w /compose ` +
     `docker:cli sh -c '${script}'`,
     { timeout: 15000 }
   );
