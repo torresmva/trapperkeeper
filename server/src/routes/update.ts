@@ -222,20 +222,46 @@ async function hasDockerCLI(): Promise<boolean> {
 
 // ── container restart ─────────────────────────────────────────────
 
-async function restartContainer(cfg: UpdateConfig): Promise<void> {
-  // Get compose project name from this container's labels
-  let project = '';
+async function restartContainer(_cfg: UpdateConfig): Promise<void> {
+  // We can't use `docker compose up -d` from inside the container because
+  // compose stops this container first, then fails to start the replacement
+  // (name collision with the stopped container). Instead, use a detached
+  // one-liner that waits for this container to stop, removes it, then
+  // starts the replacement via compose on the host's docker.
+  //
+  // Strategy: spawn a detached alpine container that:
+  //   1. waits for 'trapperkeeper' to stop
+  //   2. removes the stopped container
+  //   3. runs compose up to start the new one
+
+  // Read compose project working dir from labels (the host path)
+  let hostDir = '';
   try {
     const { stdout } = await execAsync(
-      `docker inspect trapperkeeper --format='{{index .Config.Labels "com.docker.compose.project"}}'`
+      `docker inspect trapperkeeper --format='{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`
     );
-    project = stdout.trim().replace(/'/g, '');
+    hostDir = stdout.trim().replace(/'/g, '');
   } catch {}
 
-  const projectFlag = project ? `-p ${project}` : '';
-  await execAsync(`docker compose ${projectFlag} -f ${cfg.composePath} up -d --no-build`, {
-    timeout: 60000,
-  });
+  if (!hostDir) hostDir = '/opt/trapperkeeper';
+
+  // The compose file path on the HOST (not inside the container)
+  const hostCompose = `${hostDir}/docker-compose.yml`;
+
+  // Spawn a sidecar container that outlives this one
+  const script = [
+    'sleep 3',
+    'docker stop trapperkeeper 2>/dev/null || true',
+    'docker rm trapperkeeper 2>/dev/null || true',
+    `docker compose -f ${hostCompose} up -d --no-build`,
+  ].join(' && ');
+
+  await execAsync(
+    `docker run -d --rm --name tk-updater ` +
+    `-v /var/run/docker.sock:/var/run/docker.sock ` +
+    `docker:cli sh -c '${script}'`,
+    { timeout: 15000 }
+  );
 }
 
 // ── rollback state ────────────────────────────────────────────────
