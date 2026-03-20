@@ -542,6 +542,19 @@ export function BriefingPage() {
   // Geolocation — try once, fall back to NYC
   const [coords, setCoords] = useState<{ lat: string; lon: string } | null>(null);
 
+  // IP-based location fallback (works without permissions)
+  const ipGeoFallback = useCallback(async () => {
+    try {
+      const res = await fetch('https://api.bigdatacloud.net/data/client-ip');
+      const ip = await res.json();
+      const geo = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${ip.latitude}&longitude=${ip.longitude}&localityLanguage=en`);
+      const data = await geo.json();
+      return { lat: String(data.latitude || ip.latitude), lon: String(data.longitude || ip.longitude) };
+    } catch {
+      return { lat: '40.7128', lon: '-74.0060' };
+    }
+  }, []);
+
   useEffect(() => {
     // Check localStorage first for saved location
     const saved = localStorage.getItem('tk-briefing-coords');
@@ -552,6 +565,7 @@ export function BriefingPage() {
       } catch {}
     }
 
+    // Try browser geolocation first, fall back to IP-based
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -559,27 +573,44 @@ export function BriefingPage() {
           setCoords(c);
           localStorage.setItem('tk-briefing-coords', JSON.stringify(c));
         },
-        () => setCoords({ lat: '40.7128', lon: '-74.0060' }),
+        async () => {
+          const c = await ipGeoFallback();
+          setCoords(c);
+          localStorage.setItem('tk-briefing-coords', JSON.stringify(c));
+        },
         { timeout: 5000 }
       );
     } else {
-      setCoords({ lat: '40.7128', lon: '-74.0060' });
+      ipGeoFallback().then(c => {
+        setCoords(c);
+        localStorage.setItem('tk-briefing-coords', JSON.stringify(c));
+      });
     }
   }, []);
 
   const redetectLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
     localStorage.removeItem('tk-briefing-coords');
     setWeatherLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const c = { lat: String(pos.coords.latitude), lon: String(pos.coords.longitude) };
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const c = { lat: String(pos.coords.latitude), lon: String(pos.coords.longitude) };
+          localStorage.setItem('tk-briefing-coords', JSON.stringify(c));
+          setCoords(c);
+        },
+        async () => {
+          const c = await ipGeoFallback();
+          localStorage.setItem('tk-briefing-coords', JSON.stringify(c));
+          setCoords(c);
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      ipGeoFallback().then(c => {
         localStorage.setItem('tk-briefing-coords', JSON.stringify(c));
         setCoords(c);
-      },
-      () => {},
-      { timeout: 5000 }
-    );
+      });
+    }
   }, []);
 
   // Fetch all data
