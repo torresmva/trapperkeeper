@@ -1,10 +1,7 @@
-import { ThemeToggle } from '../shared/ThemeToggle';
 import { useLocation } from 'react-router-dom';
 import { useSpace } from '../../contexts/SpaceContext';
 
 interface Props {
-  theme: 'dark' | 'light';
-  onToggleTheme: () => void;
   onQuickCapture: () => void;
   onLock?: () => void;
 }
@@ -23,7 +20,7 @@ function getBreadcrumb(pathname: string): string {
   return '';
 }
 
-export function Header({ theme, onToggleTheme, onQuickCapture, onLock }: Props) {
+export function Header({ onQuickCapture, onLock }: Props) {
   const location = useLocation();
   const breadcrumb = getBreadcrumb(location.pathname);
   const { activeSpace } = useSpace();
@@ -93,8 +90,6 @@ export function Header({ theme, onToggleTheme, onQuickCapture, onLock }: Props) 
           background: 'var(--bg-primary)',
         }}>^K</kbd>
       </button>
-
-      <ThemeToggle theme={theme} onToggle={onToggleTheme} />
 
       {onLock && (
         <button

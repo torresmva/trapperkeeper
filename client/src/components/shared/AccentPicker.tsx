@@ -35,6 +35,9 @@ export function applyThemeVariant(variantName: string) {
     }
   }
 
+  // Set data-theme for CSS selectors
+  el.setAttribute('data-theme', variantName === 'light' ? 'light' : 'dark');
+
   // If default variant, also restore saved accent color
   if (variantName === 'default') {
     const savedAccent = localStorage.getItem('tk-accent');

@@ -4,8 +4,6 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
 interface Props {
-  theme: 'dark' | 'light';
-  onToggleTheme: () => void;
   onQuickCapture: () => void;
   onLock?: () => void;
 }
@@ -13,7 +11,7 @@ interface Props {
 // Routes that manage their own padding (e.g. wiki with its tree panel)
 const ZERO_PADDING_ROUTES = ['/wiki'];
 
-export function MainLayout({ theme, onToggleTheme, onQuickCapture, onLock }: Props) {
+export function MainLayout({ onQuickCapture, onLock }: Props) {
   const location = useLocation();
   const [pageVisible, setPageVisible] = useState(true);
   const [crt, setCrt] = useState(() => localStorage.getItem('tk-crt') === 'true');
@@ -41,7 +39,7 @@ export function MainLayout({ theme, onToggleTheme, onQuickCapture, onLock }: Pro
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
         <Sidebar />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Header theme={theme} onToggleTheme={onToggleTheme} onQuickCapture={onQuickCapture} onLock={onLock} />
+          <Header onQuickCapture={onQuickCapture} onLock={onLock} />
           <main className="main-content" style={{
             flex: 1,
             overflow: 'auto',

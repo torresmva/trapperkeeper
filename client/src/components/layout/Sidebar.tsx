@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AccentPicker } from '../shared/AccentPicker';
 import { SprintCard } from '../shared/SprintCard';
 
-import { useRandomQuote } from '../../hooks/useQuotes';
+import { useRotatingQuote } from '../../hooks/useQuotes';
 import { useSpace } from '../../contexts/SpaceContext';
 import { UpdateBadge } from '../shared/UpdatePanel';
 
@@ -81,7 +81,7 @@ export function Sidebar() {
   const [crt, setCrt] = useState(() => localStorage.getItem('tk-crt') === 'true');
   const location = useLocation();
   const navigate = useNavigate();
-  const tagline = useRandomQuote('sidebar', 'trapping knowledge');
+  const tagline = useRotatingQuote('sidebar', 'trapping knowledge');
   const { activeSpace, setActiveSpace, spaces, addSpace } = useSpace();
 
   const toggleCrt = useCallback(() => {

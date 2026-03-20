@@ -39,7 +39,7 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
-  const { theme, toggleTheme } = useTheme();
+  useTheme();
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
 
@@ -70,28 +70,6 @@ export default function App() {
     return () => window.removeEventListener('tk-open-capture', handler);
   }, []);
 
-  // Restore saved accent color and theme variant on mount
-  useEffect(() => {
-    // Theme variant takes priority over plain accent
-    const variant = localStorage.getItem('tk-theme-variant');
-    if (variant && variant !== 'default') {
-      // Will be applied by AccentPicker's applyThemeVariant
-      import('./styles/theme').then(({ themeVariants }) => {
-        const v = themeVariants?.find((t: any) => t.name === variant);
-        if (v) {
-          for (const [key, value] of Object.entries(v.overrides)) {
-            document.documentElement.style.setProperty(key, value as string);
-          }
-        }
-      });
-    } else {
-      const saved = localStorage.getItem('tk-accent');
-      if (saved) {
-        document.documentElement.style.setProperty('--accent-primary', saved);
-        document.documentElement.style.setProperty('--glow', `${saved}15`);
-      }
-    }
-  }, []);
 
   // WebSocket for live file updates — invalidate React Query cache
   useWebSocket(useCallback((msg) => {
@@ -138,8 +116,6 @@ export default function App() {
         <Route
           element={
             <MainLayout
-              theme={theme}
-              onToggleTheme={toggleTheme}
               onQuickCapture={() => setQuickCaptureOpen(true)}
               onLock={handleLock}
             />

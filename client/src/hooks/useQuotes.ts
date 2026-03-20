@@ -73,6 +73,23 @@ export function useRandomQuote(section: string, fallback: string): string {
   }, [quotes, fallback]);
 }
 
+export function useRotatingQuote(section: string, fallback: string): string {
+  const quotes = useQuotes(section);
+  const [index, setIndex] = useState(0);
+
+  // Rotate on any navigation / route change
+  useEffect(() => {
+    const handler = () => setIndex(i => i + 1);
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
+  }, []);
+
+  return useMemo(() => {
+    if (quotes.length === 0) return fallback;
+    return quotes[index % quotes.length];
+  }, [quotes, fallback, index]);
+}
+
 export function useEmptyQuotes(section: string, fallback: EmptyQuote[]): EmptyQuote[] {
   const quotes = useQuotes(section);
   return useMemo(() => {
