@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from './hooks/useTheme';
 import { useWebSocket } from './hooks/useWebSocket';
 import { MainLayout } from './components/layout/MainLayout';
@@ -14,10 +15,10 @@ import { StatsPage } from './components/stats/StatsPage';
 import { CollectionsPage } from './components/collections/CollectionsPage';
 import { KeeperPage } from './components/keeper/KeeperPage';
 import { WallPage } from './components/wall/WallPage';
-import { ConfessionalPage } from './components/confessional/ConfessionalPage';
+
 import { WorkbenchPage } from './components/workbench/WorkbenchPage';
 import { WikiPage } from './components/wiki/WikiPage';
-import { CapsulesPage } from './components/capsules/CapsulesPage';
+
 import { ActivityPage } from './components/activity/ActivityPage';
 import { TemplatesPage } from './components/templates/TemplatesPage';
 import { KeyboardShortcuts } from './components/shared/KeyboardShortcuts';
@@ -25,6 +26,17 @@ import { CommandPalette } from './components/shared/CommandPalette';
 import { OubliettePage } from './components/oubliette/OubliettePage';
 import { BriefingPage } from './components/briefing/BriefingPage';
 import { SpaceProvider } from './contexts/SpaceContext';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: true,
+      retry: 1,
+    },
+  },
+});
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -81,10 +93,17 @@ export default function App() {
     }
   }, []);
 
-  // WebSocket for live file updates
+  // WebSocket for live file updates — invalidate React Query cache
   useWebSocket(useCallback((msg) => {
     if (msg.type === 'file-changed' || msg.type === 'file-removed') {
       window.dispatchEvent(new CustomEvent('tk-file-change', { detail: msg }));
+      // Invalidate relevant queries so React Query refetches
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['wiki'] });
+      queryClient.invalidateQueries({ queryKey: ['search'] });
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
     }
   }, []));
 
@@ -112,6 +131,7 @@ export default function App() {
   }
 
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
     <SpaceProvider>
       <Routes>
@@ -138,11 +158,11 @@ export default function App() {
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/keeper" element={<KeeperPage />} />
           <Route path="/wall" element={<WallPage />} />
-          <Route path="/confessional" element={<ConfessionalPage />} />
+
           <Route path="/workbench" element={<WorkbenchPage />} />
           <Route path="/wiki" element={<WikiPage />} />
           <Route path="/wiki/:slug" element={<WikiPage />} />
-          <Route path="/capsules" element={<CapsulesPage />} />
+
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/exports" element={<ExportPage />} />
@@ -165,5 +185,6 @@ export default function App() {
       <MobileNav onCapture={() => setQuickCaptureOpen(true)} />
     </SpaceProvider>
     </BrowserRouter>
+    </QueryClientProvider>
   );
 }

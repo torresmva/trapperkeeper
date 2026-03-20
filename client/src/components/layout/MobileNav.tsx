@@ -15,8 +15,6 @@ const MORE_NAV = [
   { label: 'collections', path: '/collections', icon: '▧' },
   { label: 'wiki', path: '/wiki', icon: '▤' },
   { label: 'wall', path: '/wall', icon: '▨' },
-  { label: 'confessional', path: '/confessional', icon: '▩' },
-  { label: 'capsules', path: '/capsules', icon: '◉' },
   { label: 'oubliette', path: '/oubliette', icon: '☠' },
   { label: 'workbench', path: '/workbench', icon: '⚙' },
   { label: 'search', path: '/search', icon: '⌕' },

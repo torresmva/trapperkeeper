@@ -484,7 +484,8 @@ router.get('/services', async (_req, res) => {
 router.post('/services', async (req, res) => {
   try {
     const services = await loadServices();
-    const { name, host, port, type, path } = req.body;
+    const { validate: v, createServiceSchema } = await import('../schemas');
+    const { name, host, port, type, path } = v(createServiceSchema, req.body);
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const svc: ServiceConfig = { id, name, host, port, type: type || 'http', path };
     services.push(svc);
@@ -845,10 +846,12 @@ router.get('/calendar', async (_req, res) => {
 // Set calendar config (url + optional auth)
 router.put('/calendar/config', async (req, res) => {
   try {
+    const { validate: v, calendarConfigSchema } = await import('../schemas');
+    const { url, user, pass } = v(calendarConfigSchema, req.body);
     const cfg = await loadWireConfig();
-    cfg.calendarUrl = req.body.url || '';
-    cfg.calendarUser = req.body.user || '';
-    cfg.calendarPass = req.body.pass || '';
+    cfg.calendarUrl = url;
+    cfg.calendarUser = user;
+    cfg.calendarPass = pass;
     await fs.writeFile(config.wireConfigFile, JSON.stringify(cfg, null, 2));
     delete cache['calendar'];
     res.json({ success: true });

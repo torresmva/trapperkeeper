@@ -16,10 +16,10 @@ export const config = {
   runbooksFile: path.join(ROOT, 'data', 'runbooks.json'),
   runbookLogsFile: path.join(ROOT, 'data', 'runbook-logs.json'),
   wallFile: path.join(ROOT, 'data', 'wall.json'),
-  confessionalFile: path.join(ROOT, 'data', 'confessional.json'),
+
   wikiDir: path.join(ROOT, 'data', 'wiki'),
   trophiesFile: path.join(ROOT, 'data', 'trophies.json'),
-  capsulesFile: path.join(ROOT, 'data', 'capsules.json'),
+
   oublietteDir: path.join(ROOT, 'data', 'oubliette'),
   wireServicesFile: path.join(ROOT, 'data', 'wire-services.json'),
   wireConfigFile: path.join(ROOT, 'data', 'wire-config.json'),

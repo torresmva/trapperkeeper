@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
+import { validate, createRunbookSchema, updateRunbookSchema, updateExecutionSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 const runbooksFile = path.join(config.dataDir, 'runbooks.json');
@@ -63,6 +65,10 @@ async function writeLogs(logs: RunbookExecution[]): Promise<void> {
 router.get('/', async (_req: Request, res: Response) => {
   const runbooks = await readRunbooks();
   runbooks.sort((a, b) => b.modified.localeCompare(a.modified));
+  if (_req.query.page) {
+    const { page, pageSize } = parsePagination(_req.query as any, 50);
+    return res.json(paginate(runbooks, page, pageSize));
+  }
   res.json(runbooks);
 });
 
@@ -76,7 +82,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 // Create runbook
 router.post('/', async (req: Request, res: Response) => {
-  const { title, description, steps, tags } = req.body;
+  const { title, description, steps, tags } = validate(createRunbookSchema, req.body);
   const runbooks = await readRunbooks();
   const now = new Date().toISOString();
   const runbook: Runbook = {
@@ -103,7 +109,7 @@ router.put('/:id', async (req: Request, res: Response) => {
   const runbooks = await readRunbooks();
   const idx = runbooks.findIndex(r => r.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  const { title, description, steps, tags } = req.body;
+  const { title, description, steps, tags } = validate(updateRunbookSchema, req.body);
   if (title !== undefined) runbooks[idx].title = title;
   if (description !== undefined) runbooks[idx].description = description;
   if (tags !== undefined) runbooks[idx].tags = tags;
@@ -171,7 +177,7 @@ router.put('/exec/:execId', async (req: Request, res: Response) => {
   const idx = logs.findIndex(l => l.id === req.params.execId);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
 
-  const { stepId, completed, notes } = req.body;
+  const { stepId, completed, notes } = validate(updateExecutionSchema, req.body);
   const stepIdx = logs[idx].steps.findIndex(s => s.stepId === stepId);
   if (stepIdx === -1) return res.status(404).json({ error: 'step not found' });
 

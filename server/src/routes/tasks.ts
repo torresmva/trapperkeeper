@@ -3,6 +3,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
 import { Task } from '../types';
+import { validate, createTaskSchema, updateTaskSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -57,16 +59,17 @@ modified: ${new Date().toISOString()}
 router.get('/', async (req: Request, res: Response) => {
   const tasks = await readTasks();
   const status = req.query.status as string | undefined;
-  if (status) {
-    res.json(tasks.filter(t => t.status === status));
-  } else {
-    res.json(tasks);
+  let filtered = status ? tasks.filter(t => t.status === status) : tasks;
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 100);
+    return res.json(paginate(filtered, page, pageSize));
   }
+  res.json(filtered);
 });
 
 // Create task
 router.post('/', async (req: Request, res: Response) => {
-  const { title, deadline, priority } = req.body;
+  const { title, deadline, priority } = validate(createTaskSchema, req.body);
   const tasks = await readTasks();
   const task: Task = {
     id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -86,7 +89,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   const tasks = await readTasks();
   const idx = tasks.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  tasks[idx] = { ...tasks[idx], ...req.body, id: tasks[idx].id };
+  const updates = validate(updateTaskSchema, req.body);
+  tasks[idx] = { ...tasks[idx], ...updates, id: tasks[idx].id };
   await writeTasks(tasks);
   res.json(tasks[idx]);
 });

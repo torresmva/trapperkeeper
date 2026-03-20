@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import { config } from '../config';
 import { Receipt } from '../types';
+import { validate, createReceiptSchema, updateReceiptSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -27,12 +29,16 @@ router.get('/', async (req: Request, res: Response) => {
   if (status) filtered = filtered.filter(r => r.status === status);
   if (who) filtered = filtered.filter(r => r.who.toLowerCase().includes(who.toLowerCase()));
   filtered.sort((a, b) => b.date.localeCompare(a.date));
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 50);
+    return res.json(paginate(filtered, page, pageSize));
+  }
   res.json(filtered);
 });
 
 // Create receipt
 router.post('/', async (req: Request, res: Response) => {
-  const { what, who, date, outcome, tags, entryId, status } = req.body;
+  const { what, who, date, outcome, tags, entryId, status } = validate(createReceiptSchema, req.body);
   const receipts = await readReceipts();
   const now = new Date().toISOString();
   const receipt: Receipt = {
@@ -57,7 +63,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   const receipts = await readReceipts();
   const idx = receipts.findIndex(r => r.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  receipts[idx] = { ...receipts[idx], ...req.body, id: receipts[idx].id, modified: new Date().toISOString() };
+  const updates = validate(updateReceiptSchema, req.body);
+  receipts[idx] = { ...receipts[idx], ...updates, id: receipts[idx].id, modified: new Date().toISOString() };
   await writeReceipts(receipts);
   res.json(receipts[idx]);
 });

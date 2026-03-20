@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
+import { validate, createSnippetSchema, updateSnippetSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 const snippetsFile = path.join(config.dataDir, 'snippets.json');
@@ -39,12 +41,16 @@ router.get('/', async (req: Request, res: Response) => {
   if (tag) filtered = filtered.filter(s => s.tags.includes(tag));
   // Most used first, then newest
   filtered.sort((a, b) => b.copyCount - a.copyCount || b.created.localeCompare(a.created));
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 50);
+    return res.json(paginate(filtered, page, pageSize));
+  }
   res.json(filtered);
 });
 
 // Create snippet
 router.post('/', async (req: Request, res: Response) => {
-  const { code, language, title, tags } = req.body;
+  const { code, language, title, tags } = validate(createSnippetSchema, req.body);
   const snippets = await readSnippets();
   const snippet: Snippet = {
     id: `snip-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -65,7 +71,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   const snippets = await readSnippets();
   const idx = snippets.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  snippets[idx] = { ...snippets[idx], ...req.body, id: snippets[idx].id };
+  const updates = validate(updateSnippetSchema, req.body);
+  snippets[idx] = { ...snippets[idx], ...updates, id: snippets[idx].id };
   await writeSnippets(snippets);
   res.json(snippets[idx]);
 });

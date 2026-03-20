@@ -132,15 +132,6 @@ export interface WallItem {
   zIndex: number;
 }
 
-export interface ConfessionalEntry {
-  id: string;
-  ciphertext: string;
-  iv: string;
-  salt: string;
-  hint?: string;
-  created: string;
-  modified: string;
-}
 
 export interface Stats {
   totalEntries: number;
@@ -187,14 +178,13 @@ export interface WikiTreeNode {
   children: WikiTreeNode[];
 }
 
-export interface Capsule {
-  id: string;
-  title: string;
-  content: string;
-  created: string;
-  unlockDate: string;
-  openedAt?: string;
-  sealed: boolean;
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface RadarData {

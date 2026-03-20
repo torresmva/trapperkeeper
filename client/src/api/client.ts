@@ -1,4 +1,4 @@
-import { Entry, EntryMeta, TagCount, CollectionInfo, Stats, Task, Receipt, Link, TKPromise, Snippet, Runbook, RunbookExecution, WallItem, ConfessionalEntry, GhostEntry, RadarData, Trophy, WikiPage, WikiTreeNode, Capsule } from '../types';
+import { Entry, EntryMeta, TagCount, CollectionInfo, Stats, Task, Receipt, Link, TKPromise, Snippet, Runbook, RunbookExecution, WallItem, GhostEntry, RadarData, Trophy, WikiPage, WikiTreeNode, PaginatedResult } from '../types';
 
 const BASE = '/api';
 
@@ -16,6 +16,10 @@ export const api = {
   listEntries: (category: string, params?: Record<string, string>) => {
     const qs = new URLSearchParams({ category, ...params }).toString();
     return request<Entry[]>(`/entries?${qs}`);
+  },
+  listEntriesPaged: (category: string, page: number, pageSize: number, params?: Record<string, string>) => {
+    const qs = new URLSearchParams({ category, page: String(page), pageSize: String(pageSize), ...params }).toString();
+    return request<PaginatedResult<Entry>>(`/entries?${qs}`);
   },
   getEntry: (id: string) => request<Entry>(`/entries/${encodeURIComponent(id)}`),
   createEntry: (data: { meta: EntryMeta; body: string; category: string; filename?: string }) =>
@@ -43,6 +47,15 @@ export const api = {
     if (tag) qs.set('tag', tag);
     if (space) qs.set('space', space);
     return request<Entry[]>(`/search?${qs.toString()}`);
+  },
+  searchPaged: (q: string, page: number, pageSize: number, tag?: string, space?: string) => {
+    const qs = new URLSearchParams();
+    if (q) qs.set('q', q);
+    if (tag) qs.set('tag', tag);
+    if (space) qs.set('space', space);
+    qs.set('page', String(page));
+    qs.set('pageSize', String(pageSize));
+    return request<PaginatedResult<Entry>>(`/search?${qs.toString()}`);
   },
   getTags: (space?: string) => {
     const qs = space ? `?space=${encodeURIComponent(space)}` : '';
@@ -238,14 +251,6 @@ export const api = {
   deleteWallItem: (id: string) =>
     request<{ success: boolean }>(`/wall/${id}`, { method: 'DELETE' }),
 
-  // Confessional
-  listConfessional: () => request<ConfessionalEntry[]>('/confessional'),
-  createConfessional: (data: { ciphertext: string; iv: string; salt: string; hint?: string }) =>
-    request<ConfessionalEntry>('/confessional', { method: 'POST', body: JSON.stringify(data) }),
-  updateConfessional: (id: string, data: { ciphertext: string; iv: string; salt: string; hint?: string }) =>
-    request<ConfessionalEntry>(`/confessional/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteConfessional: (id: string) =>
-    request<{ success: boolean }>(`/confessional/${id}`, { method: 'DELETE' }),
 
   // Ghosts
   getGhosts: (days?: number) => request<GhostEntry[]>(`/ghosts${days ? `?days=${days}` : ''}`),
@@ -282,23 +287,11 @@ export const api = {
   bulkWikiAction: (data: { action: string; ids: string[]; parent?: string; tag?: string }) =>
     request<{ success: boolean; updated: number }>('/wiki/bulk', { method: 'POST', body: JSON.stringify(data) }),
 
-  // Capsules
-  listCapsules: () => request<Capsule[]>('/capsules'),
-  createCapsule: (data: { title: string; content: string; unlockDate: string }) =>
-    request<Capsule>('/capsules', { method: 'POST', body: JSON.stringify(data) }),
-  openCapsule: (id: string) =>
-    request<Capsule>(`/capsules/${id}/open`, { method: 'POST' }),
-  deleteCapsule: (id: string) =>
-    request<{ success: boolean }>(`/capsules/${id}`, { method: 'DELETE' }),
 
   // Standup
   getStandup: () => request<{ standup: string; yesterdayCount: number; taskCount: number }>('/standup'),
   getOnThisDay: () => request<{ label: string; date: string; entries: { id: string; title: string; type: string; category: string }[] }[]>('/standup/on-this-day'),
 
-  // Parking lot
-  getParkingLot: () => request<{ content: string }>('/scratch/parking-lot'),
-  saveParkingLot: (content: string) =>
-    request<{ success: boolean }>('/scratch/parking-lot', { method: 'PUT', body: JSON.stringify({ content }) }),
 
   // Sprint
   getSprint: () => request<{ name: string; startDate: string; endDate: string; major: string; minor: string } | null>('/scratch/sprint'),

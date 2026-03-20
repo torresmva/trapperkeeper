@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { getAllEntries } from '../services/fileStore';
+import { validate, exportSchema } from '../schemas';
 
 const router = Router();
 
 router.post('/', async (req: Request, res: Response) => {
-  const { format, dateRange, tags, category } = req.body;
+  const { format, dateRange, tags, category } = validate(exportSchema, req.body);
   let entries = await getAllEntries();
 
   if (dateRange?.start) entries = entries.filter(e => e.meta.date >= dateRange.start);

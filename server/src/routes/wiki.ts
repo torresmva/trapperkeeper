@@ -4,6 +4,8 @@ import path from 'path';
 import { config } from '../config';
 import { parseFrontmatter, serializeFrontmatter } from '../services/frontmatter';
 import { moveToOubliette } from './oubliette';
+import { validate, createWikiPageSchema, updateWikiPageSchema, bulkWikiActionSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -60,6 +62,10 @@ router.get('/', async (req: Request, res: Response) => {
   if (space) pages = pages.filter(p => p.meta.space === space);
   const list = pages.map(({ id, meta }) => ({ id, ...meta }));
   list.sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.title.localeCompare(b.title));
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 50);
+    return res.json(paginate(list, page, pageSize));
+  }
   res.json(list);
 });
 
@@ -102,10 +108,7 @@ router.get('/tree', async (req: Request, res: Response) => {
 
 // POST /api/wiki/bulk — batch operations (reparent, delete, tag)
 router.post('/bulk', async (req: Request, res: Response) => {
-  const { action, ids, parent, tag } = req.body;
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'ids array required' });
-  }
+  const { action, ids, parent, tag } = validate(bulkWikiActionSchema, req.body);
 
   let updated = 0;
 
@@ -204,8 +207,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
 
 // POST /api/wiki — create page
 router.post('/', async (req: Request, res: Response) => {
-  const { title, body, parent, tags, order, space } = req.body;
-  if (!title) return res.status(400).json({ error: 'title is required' });
+  const { title, body, parent, tags, order, space } = validate(createWikiPageSchema, req.body);
 
   await fs.mkdir(config.wikiDir, { recursive: true });
 
@@ -262,7 +264,7 @@ router.put('/:slug', async (req: Request, res: Response) => {
     const existing = await fs.readFile(filePath, 'utf-8');
     const { meta: oldMeta } = parseFrontmatter(existing);
 
-    const { title, body, parent, tags, order } = req.body;
+    const { title, body, parent, tags, order } = validate(updateWikiPageSchema, req.body);
     const now = new Date().toISOString();
 
     const meta: any = {

@@ -5,6 +5,7 @@ import { subDays } from 'date-fns';
 import { config } from '../config';
 import { getAllEntries } from '../services/fileStore';
 import { parseFrontmatter } from '../services/frontmatter';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -188,34 +189,6 @@ async function getWikiEvents(): Promise<ActivityEvent[]> {
   return events;
 }
 
-async function getCapsuleEvents(): Promise<ActivityEvent[]> {
-  const capsules = await readJsonFile<{
-    id: string; title: string; created: string; unlockDate: string;
-    openedAt?: string; sealed: boolean;
-  }>(config.capsulesFile);
-  const events: ActivityEvent[] = [];
-  for (const c of capsules) {
-    events.push({
-      type: 'capsule',
-      action: 'capsule-sealed',
-      timestamp: c.created,
-      title: c.title,
-      icon: 'lock',
-      accent: '#f472b6',
-    });
-    if (c.openedAt) {
-      events.push({
-        type: 'capsule',
-        action: 'capsule-opened',
-        timestamp: c.openedAt,
-        title: c.title,
-        icon: 'key',
-        accent: '#4ade80',
-      });
-    }
-  }
-  return events;
-}
 
 async function getTrophyEvents(): Promise<ActivityEvent[]> {
   const TROPHY_NAMES: Record<string, string> = {
@@ -266,7 +239,6 @@ router.get('/', async (_req: Request, res: Response) => {
       getPromiseEvents(),
       getSnippetEvents(),
       getWikiEvents(),
-      getCapsuleEvents(),
       getTrophyEvents(),
     ]);
 
@@ -277,6 +249,10 @@ router.get('/', async (_req: Request, res: Response) => {
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, limit);
 
+    if (_req.query.page) {
+      const { page, pageSize } = parsePagination(_req.query as any, 50);
+      return res.json(paginate(filtered, page, pageSize));
+    }
     res.json(filtered);
   } catch (err) {
     console.error('activity feed error:', err);

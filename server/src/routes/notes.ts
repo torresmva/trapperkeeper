@@ -3,6 +3,8 @@ import { listEntries, createEntry } from '../services/fileStore';
 import { markPendingWrite } from '../services/watcher';
 import { addToIndex } from '../services/searchIndex';
 import { EntryMeta } from '../types';
+import { validate, quickNoteSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -14,11 +16,15 @@ router.get('/', async (req: Request, res: Response) => {
   }
   const space = req.query.space as string | undefined;
   if (space) entries = entries.filter(e => (e.meta as any).space === space);
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 50);
+    return res.json(paginate(entries, page, pageSize));
+  }
   res.json(entries);
 });
 
 router.post('/quick', async (req: Request, res: Response) => {
-  const { title, body, tags, collections, space } = req.body;
+  const { title, body, tags, collections, space } = validate(quickNoteSchema, req.body);
   const now = new Date();
   const meta: EntryMeta = {
     title: title || `Quick Note - ${now.toLocaleString()}`,

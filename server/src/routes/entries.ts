@@ -5,6 +5,8 @@ import { addToIndex, removeFromIndex } from '../services/searchIndex';
 import path from 'path';
 import { config } from '../config';
 import { moveToOubliette } from './oubliette';
+import { validate, createEntrySchema, updateEntrySchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -31,6 +33,10 @@ router.get('/', async (req: Request, res: Response) => {
   if (collection) entries = entries.filter(e => (e.meta.collections || []).includes(collection));
   if (space) entries = entries.filter(e => (e.meta as any).space === space);
 
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 50);
+    return res.json(paginate(entries, page, pageSize));
+  }
   res.json(entries);
 });
 
@@ -41,7 +47,7 @@ router.get('/:id(*)', async (req: Request, res: Response) => {
 });
 
 router.post('/', async (req: Request, res: Response) => {
-  const { meta, body, category, filename } = req.body;
+  const { meta, body, category, filename } = validate(createEntrySchema, req.body);
   const entry = await createEntry(category || 'journal', meta, body || '', filename);
   markPendingWrite(entry.filePath);
   addToIndex(entry);
@@ -49,7 +55,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 router.put('/:id(*)', async (req: Request, res: Response) => {
-  const { meta, body } = req.body;
+  const { meta, body } = validate(updateEntrySchema, req.body);
   const filePath = path.join(config.dataDir, req.params.id);
   markPendingWrite(filePath);
   const entry = await updateEntry(req.params.id, meta, body);

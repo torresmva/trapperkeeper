@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config';
+import { validate, createWallItemSchema, updateWallItemSchema, bulkWallUpdateSchema } from '../schemas';
 
 const router = Router();
 const wallFile = path.join(config.dataDir, 'wall.json');
@@ -41,7 +42,7 @@ router.get('/', async (_req: Request, res: Response) => {
 
 // Create wall item
 router.post('/', async (req: Request, res: Response) => {
-  const { content, type, x, y, width, height, color } = req.body;
+  const { content, type, x, y, width, height, color } = validate(createWallItemSchema, req.body);
   const items = await readWall();
   const maxZ = items.reduce((max, i) => Math.max(max, i.zIndex || 0), 0);
   const now = new Date().toISOString();
@@ -98,7 +99,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
 // Bulk update (for drag operations that move multiple items)
 router.put('/', async (req: Request, res: Response) => {
-  const updates: Partial<WallItem>[] = req.body;
+  const updates = validate(bulkWallUpdateSchema, req.body);
   const items = await readWall();
   for (const update of updates) {
     const idx = items.findIndex(i => i.id === update.id);

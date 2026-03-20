@@ -106,8 +106,6 @@ export function CommandPalette() {
       { id: 'nav-dashboard', label: 'dashboard', category: 'navigate', action: () => navigate('/stats') },
       { id: 'nav-search', label: 'search', category: 'navigate', action: () => navigate('/search') },
       { id: 'nav-wall', label: 'wall', category: 'navigate', action: () => navigate('/wall') },
-      { id: 'nav-confessional', label: 'confessional', category: 'navigate', action: () => navigate('/confessional') },
-      { id: 'nav-capsules', label: 'capsules', category: 'navigate', action: () => navigate('/capsules') },
       { id: 'nav-workbench', label: 'workbench', category: 'navigate', action: () => navigate('/workbench') },
       { id: 'nav-oubliette', label: 'oubliette', category: 'navigate', action: () => navigate('/oubliette') },
       { id: 'nav-templates', label: 'templates', category: 'navigate', action: () => navigate('/templates') },

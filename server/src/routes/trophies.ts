@@ -21,7 +21,6 @@ const TROPHY_DEFS = [
   { id: 'tag-master', name: 'tag master', description: 'use 20 unique tags', category: 'exploration', threshold: 20, icon: 'star' },
   { id: 'runbook-runner', name: 'runbook runner', description: 'complete a runbook execution', category: 'special', threshold: 1, icon: 'rocket' },
   { id: 'wiki-author', name: 'wiki author', description: 'create your first wiki page', category: 'special', threshold: 1, icon: 'scroll' },
-  { id: 'time-traveler', name: 'time traveler', description: 'seal a time capsule', category: 'special', threshold: 1, icon: 'key' },
 ];
 
 interface TrophyState {
@@ -163,19 +162,6 @@ router.post('/check', async (_req: Request, res: Response) => {
   state['wiki-author'].progress = wikiPages;
   if (wikiPages >= 1 && !state['wiki-author'].unlockedAt) {
     state['wiki-author'].unlockedAt = new Date().toISOString();
-  }
-
-  // Time traveler: check capsules.json for any capsule
-  let capsuleCount = 0;
-  try {
-    const capsData = await fs.readFile(config.capsulesFile, 'utf-8');
-    const capsules = JSON.parse(capsData);
-    capsuleCount = Array.isArray(capsules) ? capsules.length : 0;
-  } catch { /* no capsules */ }
-  state['time-traveler'] = state['time-traveler'] || { progress: 0 };
-  state['time-traveler'].progress = capsuleCount;
-  if (capsuleCount >= 1 && !state['time-traveler'].unlockedAt) {
-    state['time-traveler'].unlockedAt = new Date().toISOString();
   }
 
   await writeState(state);

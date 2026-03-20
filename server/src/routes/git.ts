@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { config } from '../config';
+import { validate, gitSyncSchema } from '../schemas';
 
 const execAsync = promisify(exec);
 const router = Router();
@@ -73,7 +74,7 @@ router.get('/status', async (_req: Request, res: Response) => {
 
 // POST /api/git/sync — stage all, commit, and push
 router.post('/sync', async (req: Request, res: Response) => {
-  const { message } = req.body;
+  const { message } = validate(gitSyncSchema, req.body);
   const commitMsg = message || `trapperkeeper sync — ${new Date().toISOString().split('T')[0]}`;
 
   try {

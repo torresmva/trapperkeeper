@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { searchEntries } from '../services/searchIndex';
 import { getEntry, getAllEntries } from '../services/fileStore';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -22,6 +23,10 @@ router.get('/', async (req: Request, res: Response) => {
   if (tag && !q) {
     const all = await getAllEntries();
     const filtered = all.filter(e => e.meta.tags.includes(tag) && (showArchived || !e.meta.archived) && (!space || (e.meta as any).space === space));
+    if (req.query.page) {
+      const { page, pageSize } = parsePagination(req.query as any, 30);
+      return res.json(paginate(filtered, page, pageSize));
+    }
     return res.json(filtered);
   }
 
@@ -34,6 +39,10 @@ router.get('/', async (req: Request, res: Response) => {
       if (space && (entry.meta as any).space !== space) continue;
       entries.push(entry);
     }
+  }
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 30);
+    return res.json(paginate(entries, page, pageSize));
   }
   res.json(entries);
 });

@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import { config } from '../config';
 import { Link } from '../types';
+import { validate, createLinkSchema, updateLinkSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -27,12 +29,16 @@ router.get('/', async (req: Request, res: Response) => {
   if (status) filtered = filtered.filter(l => l.status === status);
   if (tag) filtered = filtered.filter(l => l.tags.includes(tag));
   filtered.sort((a, b) => b.created.localeCompare(a.created));
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 50);
+    return res.json(paginate(filtered, page, pageSize));
+  }
   res.json(filtered);
 });
 
 // Create link
 router.post('/', async (req: Request, res: Response) => {
-  const { url, title, note, tags, status } = req.body;
+  const { url, title, note, tags, status } = validate(createLinkSchema, req.body);
   const links = await readLinks();
   const link: Link = {
     id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -53,7 +59,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   const links = await readLinks();
   const idx = links.findIndex(l => l.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  links[idx] = { ...links[idx], ...req.body, id: links[idx].id };
+  const updates = validate(updateLinkSchema, req.body);
+  links[idx] = { ...links[idx], ...updates, id: links[idx].id };
   await writeLinks(links);
   res.json(links[idx]);
 });

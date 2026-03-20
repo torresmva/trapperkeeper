@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -95,6 +96,10 @@ router.get('/', async (_req: Request, res: Response) => {
     daysRemaining: daysRemaining(item.deletedAt),
   }));
 
+  if (_req.query.page) {
+    const { page, pageSize } = parsePagination(_req.query as any, 50);
+    return res.json(paginate(list, page, pageSize));
+  }
   res.json(list);
 });
 

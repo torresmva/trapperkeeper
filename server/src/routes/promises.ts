@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import { config } from '../config';
 import { Promise as TKPromise } from '../types';
+import { validate, createPromiseSchema, updatePromiseSchema } from '../schemas';
+import { paginate, parsePagination } from '../services/pagination';
 
 const router = Router();
 
@@ -37,12 +39,16 @@ router.get('/', async (req: Request, res: Response) => {
     if (b.due) return 1;
     return b.created.localeCompare(a.created);
   });
+  if (req.query.page) {
+    const { page, pageSize } = parsePagination(req.query as any, 50);
+    return res.json(paginate(filtered, page, pageSize));
+  }
   res.json(filtered);
 });
 
 // Create promise
 router.post('/', async (req: Request, res: Response) => {
-  const { description, who, direction, due, context } = req.body;
+  const { description, who, direction, due, context } = validate(createPromiseSchema, req.body);
   const promises = await readPromises();
   const promise: TKPromise = {
     id: `promise-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -64,7 +70,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   const promises = await readPromises();
   const idx = promises.findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not found' });
-  promises[idx] = { ...promises[idx], ...req.body, id: promises[idx].id };
+  const updates = validate(updatePromiseSchema, req.body);
+  promises[idx] = { ...promises[idx], ...updates, id: promises[idx].id };
   await writePromises(promises);
   res.json(promises[idx]);
 });

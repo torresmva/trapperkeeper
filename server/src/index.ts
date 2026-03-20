@@ -31,11 +31,11 @@ import snippetsRouter from './routes/snippets';
 import standupRouter from './routes/standup';
 import runbooksRouter from './routes/runbooks';
 import wallRouter from './routes/wall';
-import confessionalRouter from './routes/confessional';
+
 import ghostsRouter from './routes/ghosts';
 import trophiesRouter from './routes/trophies';
 import wikiRouter from './routes/wiki';
-import capsulesRouter from './routes/capsules';
+
 import activityRouter from './routes/activity';
 import oublietteRouter from './routes/oubliette';
 import spacesRouter from './routes/spaces';
@@ -92,11 +92,11 @@ async function main() {
   app.use('/api/standup', standupRouter);
   app.use('/api/runbooks', runbooksRouter);
   app.use('/api/wall', wallRouter);
-  app.use('/api/confessional', confessionalRouter);
+
   app.use('/api/ghosts', ghostsRouter);
   app.use('/api/trophies', trophiesRouter);
   app.use('/api/wiki', wikiRouter);
-  app.use('/api/capsules', capsulesRouter);
+
   app.use('/api/activity', activityRouter);
   app.use('/api/oubliette', oublietteRouter);
   app.use('/api/spaces', spacesRouter);

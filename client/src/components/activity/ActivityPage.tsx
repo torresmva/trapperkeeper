@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   PixelCoffee, PixelScroll, PixelCrown, PixelGhost, PixelSword,
   PixelSkull, PixelShield, PixelLightning, PixelStar, PixelTrophy,
-  PixelKey, PixelRocket, PixelBorder, PixelHeart, PixelWrench,
+  PixelRocket, PixelBorder, PixelHeart, PixelWrench,
   PixelFolder, PixelFire,
 } from '../shared/PixelArt';
 
@@ -71,16 +71,6 @@ const EVENT_CONFIG: Record<string, {
     icon: (s) => <PixelFolder size={s} color="var(--text-secondary)" />,
     accent: 'var(--text-secondary)',
     verb: 'updated page',
-  },
-  'capsule-sealed': {
-    icon: (s) => <PixelKey size={s} color="var(--accent-secondary)" />,
-    accent: 'var(--accent-secondary)',
-    verb: 'sealed capsule',
-  },
-  'capsule-opened': {
-    icon: (s) => <PixelKey size={s} color="var(--accent-green)" />,
-    accent: 'var(--accent-green)',
-    verb: 'opened capsule',
   },
   'trophy-unlocked': {
     icon: (s) => <PixelTrophy size={s} color="var(--accent-tertiary)" />,

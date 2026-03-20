@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AccentPicker } from '../shared/AccentPicker';
 import { SprintCard } from '../shared/SprintCard';
-import { ParkingLot } from '../shared/ParkingLot';
+
 import { useRandomQuote } from '../../hooks/useQuotes';
 import { useSpace } from '../../contexts/SpaceContext';
 import { UpdateBadge } from '../shared/UpdatePanel';
@@ -56,8 +56,7 @@ const navGroups: NavGroup[] = [
     label: 'vault',
     items: [
       { to: '/wall', label: 'the wall' },
-      { to: '/confessional', label: 'confessional' },
-      { to: '/capsules', label: 'capsules' },
+
       { to: '/oubliette', label: 'oubliette' },
     ],
   },
@@ -413,8 +412,6 @@ export function Sidebar() {
       {/* Sprint */}
       {!collapsed && <SprintCard />}
 
-      {/* Parking lot */}
-      {!collapsed && <ParkingLot />}
 
       {/* System / Update / Backup */}
       {!collapsed && <UpdateBadge />}
