@@ -157,8 +157,9 @@ router.get('/weather', async (_req, res) => {
 
     const city = geo?.city || geo?.locality || '';
     const state = geo?.principalSubdivision || '';
+    const country = geo?.countryName || '';
 
-    const result = { ...data, city, state };
+    const result = { ...data, city, state, country };
     setCache(cacheKey, result, 15 * 60 * 1000); // 15 min
     res.json(result);
   } catch (err: any) {

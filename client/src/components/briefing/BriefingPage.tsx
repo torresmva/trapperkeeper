@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useRandomQuote } from '../../hooks/useQuotes';
@@ -54,6 +54,7 @@ interface WeatherData {
   };
   city?: string;
   state?: string;
+  country?: string;
 }
 
 interface NewsItem {
@@ -117,7 +118,7 @@ function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: Re
 }
 
 // ── Weather panel ──
-function WeatherPanel({ data, loading }: { data: WeatherData | null; loading: boolean }) {
+function WeatherPanel({ data, loading, onRedetect }: { data: WeatherData | null; loading: boolean; onRedetect?: () => void }) {
   if (loading) return <PanelSkeleton label="weather" />;
   if (!data) return <PanelError label="weather" />;
 
@@ -125,11 +126,39 @@ function WeatherPanel({ data, loading }: { data: WeatherData | null; loading: bo
   const w = weatherInfo(current.weather_code);
   const daily = data.daily;
 
+  const locationParts = [data.city, data.state, data.country].filter(Boolean).map(s => s!.toLowerCase());
+  const locationStr = locationParts.join(', ');
+
   return (
     <div style={panelStyle}>
-      <SectionLabel icon={<span style={{ fontSize: '12px' }}>{w.icon}</span>}>
-        weather{data.city ? ` · ${data.city.toLowerCase()}${data.state ? `, ${data.state.toLowerCase()}` : ''}` : ''}
-      </SectionLabel>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <SectionLabel icon={<span style={{ fontSize: '12px' }}>{w.icon}</span>}>
+          weather
+        </SectionLabel>
+        {onRedetect && (
+          <button
+            onClick={onRedetect}
+            title="re-detect location"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: '10px',
+              fontFamily: "'JetBrains Mono', monospace",
+              cursor: 'pointer',
+              padding: '2px 4px',
+              letterSpacing: '0.04em',
+            }}
+          >
+            ⟳ detect
+          </button>
+        )}
+      </div>
+      {locationStr && (
+        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.02em' }}>
+          {locationStr}
+        </div>
+      )}
 
       {/* Current */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
@@ -538,6 +567,21 @@ export function BriefingPage() {
     }
   }, []);
 
+  const redetectLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    localStorage.removeItem('tk-briefing-coords');
+    setWeatherLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const c = { lat: String(pos.coords.latitude), lon: String(pos.coords.longitude) };
+        localStorage.setItem('tk-briefing-coords', JSON.stringify(c));
+        setCoords(c);
+      },
+      () => {},
+      { timeout: 5000 }
+    );
+  }, []);
+
   // Fetch all data
   useEffect(() => {
     if (!coords) return;
@@ -635,7 +679,7 @@ export function BriefingPage() {
         gap: 16,
       }} className="briefing-grid">
         {/* Row 1: Weather + Calendar side by side */}
-        <WeatherPanel data={weather} loading={weatherLoading} />
+        <WeatherPanel data={weather} loading={weatherLoading} onRedetect={redetectLocation} />
         <CalendarPanel data={calendar} loading={calendarLoading} onRefresh={refresh} />
 
         {/* Row 2: Markets + System Status */}
