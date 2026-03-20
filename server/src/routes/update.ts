@@ -220,6 +220,30 @@ async function hasDockerCLI(): Promise<boolean> {
   try { await execAsync('docker --version'); return true; } catch { return false; }
 }
 
+// ── container restart ─────────────────────────────────────────────
+
+async function restartContainer(cfg: UpdateConfig): Promise<void> {
+  // Get compose project name from this container's labels
+  let project = '';
+  try {
+    const { stdout } = await execAsync(
+      `docker inspect trapperkeeper --format='{{index .Config.Labels "com.docker.compose.project"}}'`
+    );
+    project = stdout.trim().replace(/'/g, '');
+  } catch {}
+
+  if (project) {
+    await execAsync(`docker compose -p ${project} -f ${cfg.composePath} up -d`, {
+      timeout: 60000,
+    });
+  } else {
+    await execAsync(`docker compose -f ${cfg.composePath} up -d`, {
+      cwd: path.dirname(cfg.composePath),
+      timeout: 60000,
+    });
+  }
+}
+
 // ── rollback state ────────────────────────────────────────────────
 
 interface RollbackInfo {
@@ -410,11 +434,7 @@ router.post('/apply', async (req: Request, res: Response) => {
     // Restart after response flushes
     setTimeout(async () => {
       try {
-        const composeDir = path.dirname(cfg.composePath);
-        await execAsync(`docker compose -f ${cfg.composePath} up -d`, {
-          cwd: composeDir,
-          timeout: 60000,
-        });
+        await restartContainer(cfg);
       } catch (err: any) {
         console.error('[update] restart failed:', err.message);
       }
@@ -461,10 +481,7 @@ router.post('/rollback', async (_req: Request, res: Response) => {
 
     setTimeout(async () => {
       try {
-        await execAsync(`docker compose -f ${cfg.composePath} up -d`, {
-          cwd: path.dirname(cfg.composePath),
-          timeout: 60000,
-        });
+        await restartContainer(cfg);
       } catch (err: any) {
         console.error('[update] rollback restart failed:', err.message);
       }
