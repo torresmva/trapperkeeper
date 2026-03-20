@@ -44,9 +44,6 @@ VOLUME ["/app/data"]
 # Copy default templates
 COPY data/templates/ /app/data/templates/
 
-# Copy docker-compose.yml for self-update
-COPY docker-compose.yml /app/docker-compose.yml
-
 ENV NODE_ENV=production
 ENV PORT=3001
 

@@ -230,8 +230,26 @@ function AboutTab() {
           />
           {config?.repo && <Row label="repo" value={config.repo} mono />}
           {config?.image && <Row label="image" value={config.image} mono />}
-          <Row label="compose" value={config?.composePath || '—'} mono />
+          <Row
+            label="compose"
+            value={config?.composeMounted ? 'mounted' : 'not mounted'}
+            valueColor={config?.composeMounted ? 'var(--accent-green)' : 'var(--accent-orange)'}
+          />
         </div>
+        {config && !config.composeMounted && (
+          <div style={{
+            marginTop: 10,
+            color: 'var(--accent-orange)',
+            fontSize: '9px',
+            lineHeight: '1.6',
+            borderLeft: '2px solid var(--accent-orange)',
+            paddingLeft: 12,
+          }}>
+            compose file not mounted — auto-update cannot restart the container.<br />
+            add to your docker-compose.yml volumes:<br />
+            <Code>- ./docker-compose.yml:/app/docker-compose.yml:ro</Code>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -247,7 +265,7 @@ const ERROR_HELP: Record<string, string> = {
   DOCKER_CLI_MISSING: 'rebuild the image — docker-cli should be installed in the Dockerfile',
   REGISTRY_AUTH_FAILED: 'run docker login on the host, or set TK_UPDATE_TOKEN',
   IMAGE_NOT_FOUND: 'the image tag was not found in the registry — was it pushed?',
-  COMPOSE_NOT_FOUND: 'the compose file is missing inside the container — rebuild the image',
+  COMPOSE_NOT_FOUND: 'add to your docker-compose.yml volumes: ./docker-compose.yml:/app/docker-compose.yml:ro',
   COMPOSE_RESTART_FAILED: 'docker compose up -d failed — check container logs',
   API_UNREACHABLE: 'could not reach the update API — check TK_UPDATE_API_URL and network',
   PULL_FAILED: 'docker pull failed — check registry access and network',

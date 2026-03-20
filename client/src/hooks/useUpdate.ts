@@ -28,6 +28,7 @@ interface UpdateConfig {
   image: string;
   hasToken: boolean;
   composePath: string;
+  composeMounted: boolean;
   dockerSocket: boolean;
   dockerCLI: boolean;
 }
