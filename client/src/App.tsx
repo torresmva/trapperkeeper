@@ -26,6 +26,8 @@ import { CommandPalette } from './components/shared/CommandPalette';
 import { OubliettePage } from './components/oubliette/OubliettePage';
 import { BriefingPage } from './components/briefing/BriefingPage';
 import { SpaceProvider } from './contexts/SpaceContext';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
+import { ErrorPage } from './components/shared/ErrorPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,6 +111,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
     <BrowserRouter>
     <SpaceProvider>
@@ -153,6 +156,9 @@ export default function App() {
           <Route path="/promises" element={<Navigate to="/keeper?tab=promises" replace />} />
           <Route path="/snippets" element={<Navigate to="/keeper?tab=snippets" replace />} />
           <Route path="/runbooks" element={<Navigate to="/keeper?tab=runbooks" replace />} />
+
+          {/* 404 catch-all */}
+          <Route path="*" element={<ErrorPage is404 />} />
         </Route>
       </Routes>
       <QuickCapture open={quickCaptureOpen} onClose={() => setQuickCaptureOpen(false)} />
@@ -162,5 +168,6 @@ export default function App() {
     </SpaceProvider>
     </BrowserRouter>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

@@ -91,6 +91,11 @@ export function Sidebar() {
     window.dispatchEvent(new Event('tk-crt-change'));
   }, [crt]);
 
+  // Fire nav event so rotating quotes pick it up
+  useEffect(() => {
+    window.dispatchEvent(new Event('tk-nav'));
+  }, [location.pathname]);
+
   // Auto-expand group containing active route
   useEffect(() => {
     for (const group of navGroups) {

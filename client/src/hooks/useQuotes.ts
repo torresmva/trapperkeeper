@@ -73,21 +73,52 @@ export function useRandomQuote(section: string, fallback: string): string {
   }, [quotes, fallback]);
 }
 
-export function useRotatingQuote(section: string, fallback: string): string {
-  const quotes = useQuotes(section);
-  const [index, setIndex] = useState(0);
+const BUILTIN_SLOGANS = [
+  'trapping knowledge',
+  'write it down',
+  'ship the log',
+  'today matters',
+  'capture everything',
+  'brain on disk',
+  'never forget',
+  'log the work',
+  'receipts on file',
+  'ink is permanent',
+  'ctrl+s your brain',
+  'paper trail',
+  'journal or it didn\'t happen',
+  'the daily record',
+  'work log loaded',
+];
 
-  // Rotate on any navigation / route change
+export function useRotatingQuote(section: string, _fallback: string): string {
+  const userQuotes = useQuotes(section);
+  const [counter, setCounter] = useState(() => Math.floor(Math.random() * 100));
+
+  // Rotate on route changes + periodic
   useEffect(() => {
-    const handler = () => setIndex(i => i + 1);
-    window.addEventListener('click', handler);
-    return () => window.removeEventListener('click', handler);
+    const bump = () => setCounter(c => c + 1);
+    // Listen for route changes via popstate + custom nav events
+    window.addEventListener('popstate', bump);
+    window.addEventListener('tk-file-change', bump);
+    // Also rotate every 30s
+    const interval = setInterval(bump, 30000);
+    return () => {
+      window.removeEventListener('popstate', bump);
+      window.removeEventListener('tk-file-change', bump);
+      clearInterval(interval);
+    };
   }, []);
 
-  return useMemo(() => {
-    if (quotes.length === 0) return fallback;
-    return quotes[index % quotes.length];
-  }, [quotes, fallback, index]);
+  // Also bump on pathname changes via a custom event
+  useEffect(() => {
+    const bump = () => setCounter(c => c + 1);
+    window.addEventListener('tk-nav', bump);
+    return () => window.removeEventListener('tk-nav', bump);
+  }, []);
+
+  const pool = userQuotes.length > 0 ? userQuotes : BUILTIN_SLOGANS;
+  return pool[counter % pool.length];
 }
 
 export function useEmptyQuotes(section: string, fallback: EmptyQuote[]): EmptyQuote[] {
