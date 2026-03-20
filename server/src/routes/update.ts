@@ -222,56 +222,66 @@ async function hasDockerCLI(): Promise<boolean> {
 
 // ── container restart ─────────────────────────────────────────────
 
-async function restartContainer(_cfg: UpdateConfig): Promise<void> {
-  // We can't use `docker compose up -d` from inside the container because
-  // compose stops this container first, then fails to start the replacement
-  // (name collision with the stopped container). Instead, use a detached
-  // one-liner that waits for this container to stop, removes it, then
-  // starts the replacement via compose on the host's docker.
-  //
-  // Strategy: spawn a detached alpine container that:
-  //   1. waits for 'trapperkeeper' to stop
-  //   2. removes the stopped container
-  //   3. runs compose up to start the new one
+async function restartContainer(cfg: UpdateConfig): Promise<void> {
+  // No compose — just read this container's config and recreate with the new image.
+  // A sidecar container handles the stop/rm/run so we don't kill ourselves mid-command.
+  const name = 'trapperkeeper';
+  const { stdout: inspectJson } = await execAsync(`docker inspect ${name}`, { timeout: 10000 });
+  const info = JSON.parse(inspectJson)[0];
+  const image = `${cfg.image}:latest`;
 
-  // Read compose project working dir from labels (the host path)
-  let hostDir = '';
-  try {
-    const { stdout } = await execAsync(
-      `docker inspect trapperkeeper --format='{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`
-    );
-    hostDir = stdout.trim().replace(/'/g, '');
-  } catch {}
+  // Collect port bindings: -p hostPort:containerPort
+  const portBindings = info.HostConfig?.PortBindings || {};
+  const portFlags: string[] = [];
+  for (const [containerPort, bindings] of Object.entries(portBindings)) {
+    for (const b of (bindings as any[])) {
+      const cp = containerPort.replace('/tcp', '').replace('/udp', '');
+      portFlags.push(`-p ${b.HostPort}:${cp}`);
+    }
+  }
 
-  if (!hostDir) hostDir = '/opt/trapperkeeper';
+  // Collect volume mounts: -v source:dest[:ro]
+  const volFlags: string[] = [];
+  for (const m of (info.Mounts || [])) {
+    if (m.Type === 'volume') volFlags.push(`-v ${m.Name}:${m.Destination}`);
+    else if (m.Type === 'bind') volFlags.push(`-v ${m.Source}:${m.Destination}${m.RW === false ? ':ro' : ''}`);
+  }
 
-  // The compose file path on the HOST (not inside the container)
-  const hostCompose = `${hostDir}/docker-compose.yml`;
+  // Collect env vars: -e KEY=VALUE (single-quote to protect special chars)
+  const envFlags = (info.Config?.Env || []).map((e: string) => `-e '${e}'`);
 
-  // Spawn a sidecar container that outlives this one.
-  // Mount both the docker socket and the host compose file.
-  // Read compose project name from labels
-  let project = 'trapperkeeper';
-  try {
-    const { stdout } = await execAsync(
-      `docker inspect trapperkeeper --format='{{index .Config.Labels "com.docker.compose.project"}}'`
-    );
-    const parsed = stdout.trim().replace(/'/g, '');
-    if (parsed) project = parsed;
-  } catch {}
+  // Preserve labels so future updates still work
+  const labels: string[] = [];
+  for (const [k, v] of Object.entries(info.Config?.Labels || {})) {
+    if (typeof v === 'string') labels.push(`--label '${k}=${v}'`);
+  }
+
+  const restartPolicy = info.HostConfig?.RestartPolicy?.Name || 'unless-stopped';
+
+  const runCmd = [
+    'docker run -d',
+    `--name ${name}`,
+    `--restart ${restartPolicy}`,
+    ...portFlags,
+    ...volFlags,
+    ...envFlags,
+    ...labels,
+    image,
+  ].join(' ');
 
   const script = [
-    'sleep 3',
-    'docker stop trapperkeeper 2>/dev/null || true',
-    'docker rm trapperkeeper 2>/dev/null || true',
-    `docker compose -p ${project} -f /compose/docker-compose.yml up -d --no-build`,
+    'sleep 2',
+    `docker stop ${name} 2>/dev/null || true`,
+    `docker rm ${name} 2>/dev/null || true`,
+    // Clean up any mangled containers from previous failed attempts
+    `for c in $(docker ps -a --format "{{.Names}}" | grep _${name}); do docker rm -f $c 2>/dev/null; done`,
+    runCmd,
   ].join(' && ');
 
+  // Sidecar only needs the docker socket — no compose, no host filesystem
   await execAsync(
     `docker run -d --rm --name tk-updater ` +
     `-v /var/run/docker.sock:/var/run/docker.sock ` +
-    `-v ${hostDir}:/compose:ro ` +
-    `-w /compose ` +
     `docker:cli sh -c '${script}'`,
     { timeout: 15000 }
   );
