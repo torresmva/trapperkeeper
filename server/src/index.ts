@@ -47,6 +47,25 @@ async function ensureDataDirs() {
   for (const dir of dirs) {
     await fs.mkdir(dir, { recursive: true });
   }
+
+  // Seed default templates if templates dir is empty
+  const defaultTemplatesDir = path.join(__dirname, '..', '..', 'default-templates');
+  try {
+    const existing = await fs.readdir(config.templatesDir);
+    if (existing.filter(f => f.endsWith('.md')).length === 0) {
+      const defaults = await fs.readdir(defaultTemplatesDir);
+      for (const file of defaults) {
+        if (!file.endsWith('.md')) continue;
+        await fs.copyFile(
+          path.join(defaultTemplatesDir, file),
+          path.join(config.templatesDir, file)
+        );
+      }
+      console.log(`Seeded ${defaults.filter(f => f.endsWith('.md')).length} default templates`);
+    }
+  } catch {
+    // default-templates dir may not exist in dev mode
+  }
 }
 
 async function main() {

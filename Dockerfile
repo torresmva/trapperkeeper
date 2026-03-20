@@ -41,8 +41,8 @@ RUN echo "{\"version\":\"${TK_VERSION}\",\"commit\":\"${TK_COMMIT}\",\"buildDate
 RUN mkdir -p /app/data/journal /app/data/notes /app/data/templates /app/data/assets
 VOLUME ["/app/data"]
 
-# Copy default templates
-COPY data/templates/ /app/data/templates/
+# Default templates — copied to data/templates/ on first run if empty
+COPY data/templates/ /app/default-templates/
 
 ENV NODE_ENV=production
 ENV PORT=3001
