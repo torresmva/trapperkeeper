@@ -150,15 +150,13 @@ router.get('/weather', async (_req, res) => {
         `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=3`
       ),
       fetchJSON(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`,
-        5000,
-        { 'User-Agent': BOT_UA }
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
+        5000
       ).catch(() => null),
     ]);
 
-    const addr = geo?.address || {};
-    const city = addr.city || addr.town || addr.village || '';
-    const state = addr.state || '';
+    const city = geo?.city || geo?.locality || '';
+    const state = geo?.principalSubdivision || '';
 
     const result = { ...data, city, state };
     setCache(cacheKey, result, 15 * 60 * 1000); // 15 min
