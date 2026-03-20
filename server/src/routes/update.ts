@@ -232,16 +232,10 @@ async function restartContainer(cfg: UpdateConfig): Promise<void> {
     project = stdout.trim().replace(/'/g, '');
   } catch {}
 
-  if (project) {
-    await execAsync(`docker compose -p ${project} -f ${cfg.composePath} up -d`, {
-      timeout: 60000,
-    });
-  } else {
-    await execAsync(`docker compose -f ${cfg.composePath} up -d`, {
-      cwd: path.dirname(cfg.composePath),
-      timeout: 60000,
-    });
-  }
+  const projectFlag = project ? `-p ${project}` : '';
+  await execAsync(`docker compose ${projectFlag} -f ${cfg.composePath} up -d`, {
+    timeout: 60000,
+  });
 }
 
 // ── rollback state ────────────────────────────────────────────────

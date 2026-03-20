@@ -27,7 +27,7 @@ ARG TK_COMMIT=unknown
 ARG TK_BRANCH=main
 
 # Install tsx for running TypeScript directly + openssl for self-signed certs + docker CLI for self-update
-RUN apk add --no-cache openssl docker-cli curl && npm install -g tsx
+RUN apk add --no-cache openssl docker-cli docker-cli-compose curl && npm install -g tsx
 
 COPY --from=server-build /app/node_modules ./node_modules
 COPY --from=server-build /app/server ./server
