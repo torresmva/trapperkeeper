@@ -97,8 +97,8 @@ echo ">> pushing to origin..."
 git push origin "$BRANCH" --tags
 
 if git remote get-url github >/dev/null 2>&1; then
-  echo ">> pushing to github (branch + tags)..."
-  git push github "$BRANCH" --tags
+  echo ">> pushing tags to github (tags only — code stays on gitlab)..."
+  git push github tag "$TAG"
 fi
 
 # ── create github release ────────────────────────────────────────
