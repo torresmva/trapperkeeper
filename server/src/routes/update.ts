@@ -210,81 +210,38 @@ async function fetchLatestTag(cfg: UpdateConfig): Promise<RemoteRelease> {
   }
 }
 
-// ── docker checks ─────────────────────────────────────────────────
+// ── warden communication ─────────────────────────────────────────
 
-async function hasDockerSocket(): Promise<boolean> {
-  try { await fs.access('/var/run/docker.sock'); return true; } catch { return false; }
+function getWardenUrl(): string {
+  return process.env.TK_WARDEN_URL || 'http://tk-warden:3002';
 }
 
-async function hasDockerCLI(): Promise<boolean> {
-  try { await execAsync('docker --version'); return true; } catch { return false; }
+async function wardenRequest(path: string, method = 'GET', body?: any): Promise<any> {
+  const url = `${getWardenUrl()}${path}`;
+  const options: any = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) options.body = JSON.stringify(body);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  options.signal = controller.signal;
+
+  try {
+    const res = await fetch(url, options);
+    clearTimeout(timeout);
+    return await res.json();
+  } catch (err: any) {
+    clearTimeout(timeout);
+    throw new Error(`warden unreachable at ${url}: ${err.message}`);
+  }
 }
 
-// ── container restart ─────────────────────────────────────────────
-
-async function restartContainer(cfg: UpdateConfig): Promise<void> {
-  // No compose — just read this container's config and recreate with the new image.
-  // A sidecar container handles the stop/rm/run so we don't kill ourselves mid-command.
-  const name = 'trapperkeeper';
-  const { stdout: inspectJson } = await execAsync(`docker inspect ${name}`, { timeout: 10000 });
-  const info = JSON.parse(inspectJson)[0];
-  const image = `${cfg.image}:latest`;
-
-  // Collect port bindings: -p hostPort:containerPort
-  const portBindings = info.HostConfig?.PortBindings || {};
-  const portFlags: string[] = [];
-  for (const [containerPort, bindings] of Object.entries(portBindings)) {
-    for (const b of (bindings as any[])) {
-      const cp = containerPort.replace('/tcp', '').replace('/udp', '');
-      portFlags.push(`-p ${b.HostPort}:${cp}`);
-    }
+async function isWardenAvailable(): Promise<boolean> {
+  try {
+    const res = await wardenRequest('/health');
+    return res?.ok === true;
+  } catch {
+    return false;
   }
-
-  // Collect volume mounts: -v source:dest[:ro]
-  const volFlags: string[] = [];
-  for (const m of (info.Mounts || [])) {
-    if (m.Type === 'volume') volFlags.push(`-v ${m.Name}:${m.Destination}`);
-    else if (m.Type === 'bind') volFlags.push(`-v ${m.Source}:${m.Destination}${m.RW === false ? ':ro' : ''}`);
-  }
-
-  // Collect env vars: -e KEY=VALUE (single-quote to protect special chars)
-  const envFlags = (info.Config?.Env || []).map((e: string) => `-e '${e}'`);
-
-  // Preserve labels so future updates still work
-  const labels: string[] = [];
-  for (const [k, v] of Object.entries(info.Config?.Labels || {})) {
-    if (typeof v === 'string') labels.push(`--label '${k}=${v}'`);
-  }
-
-  const restartPolicy = info.HostConfig?.RestartPolicy?.Name || 'unless-stopped';
-
-  const runCmd = [
-    'docker run -d',
-    `--name ${name}`,
-    `--restart ${restartPolicy}`,
-    ...portFlags,
-    ...volFlags,
-    ...envFlags,
-    ...labels,
-    image,
-  ].join(' ');
-
-  const script = [
-    'sleep 2',
-    `docker stop ${name} 2>/dev/null || true`,
-    `docker rm ${name} 2>/dev/null || true`,
-    // Clean up any mangled containers from previous failed attempts
-    `for c in $(docker ps -a --format "{{.Names}}" | grep _${name}); do docker rm -f $c 2>/dev/null; done`,
-    runCmd,
-  ].join(' && ');
-
-  // Sidecar only needs the docker socket — no compose, no host filesystem
-  await execAsync(
-    `docker run -d --rm --name tk-updater ` +
-    `-v /var/run/docker.sock:/var/run/docker.sock ` +
-    `docker:cli sh -c '${script}'`,
-    { timeout: 15000 }
-  );
 }
 
 // ── rollback state ────────────────────────────────────────────────
@@ -324,11 +281,11 @@ router.get('/health', async (_req: Request, res: Response) => {
 router.get('/version', async (_req: Request, res: Response) => {
   const version = await getVersion();
   const cfg = getUpdateConfig();
-  const docker = await hasDockerSocket();
+  const warden = await isWardenAvailable();
   res.json({
     ...version,
     updateConfigured: !!(cfg.repo && cfg.image),
-    dockerSocket: docker,
+    wardenAvailable: warden,
     provider: cfg.provider,
   });
 });
@@ -373,7 +330,7 @@ router.get('/check', async (_req: Request, res: Response) => {
   }
 });
 
-// POST /api/update/apply — pull new image and restart
+// POST /api/update/apply — delegate to warden for pull + restart
 router.post('/apply', async (req: Request, res: Response) => {
   const cfg = getUpdateConfig();
   const { tag } = req.body;
@@ -382,106 +339,40 @@ router.post('/apply', async (req: Request, res: Response) => {
     return errorResponse(res, 400, 'CONFIG_MISSING', 'set TK_UPDATE_IMAGE environment variable');
   }
 
-  if (!await hasDockerSocket()) {
-    return errorResponse(res, 400, 'DOCKER_SOCKET_MISSING',
-      'mount /var/run/docker.sock in your docker-compose.yml volumes',
-      { manual: `docker pull ${imageTagFor(tag, cfg)} && docker compose up -d` });
-  }
-
-  if (!await hasDockerCLI()) {
-    return errorResponse(res, 400, 'DOCKER_CLI_MISSING',
-      'docker CLI not found in container — rebuild image',
-      { manual: `docker pull ${imageTagFor(tag, cfg)} && docker compose up -d` });
-  }
-
   const pullTarget = imageTagFor(tag, cfg);
 
+  // Save rollback info
   try {
-    // Save rollback info before pulling
     const currentVersion = await getVersion();
-    try {
-      const { stdout: currentImage } = await execAsync(
-        `docker inspect --format='{{.Config.Image}}' trapperkeeper`
-      );
-      await saveRollbackInfo({
-        previousImage: currentImage.trim(),
-        previousVersion: currentVersion.version,
-        newImage: pullTarget,
-        timestamp: new Date().toISOString(),
-      });
-    } catch {
-      // non-fatal: rollback won't be available
-    }
-
-    // Pull new image
-    let pullOutput: string;
-    try {
-      const result = await execAsync(`docker pull ${pullTarget}`, { timeout: 120000 });
-      pullOutput = result.stdout;
-    } catch (err: any) {
-      const detail = err.message || '';
-      if (detail.includes('not found') || detail.includes('manifest unknown')) {
-        return errorResponse(res, 404, 'IMAGE_NOT_FOUND',
-          `image ${pullTarget} not found in registry — was it pushed?`);
-      }
-      if (detail.includes('unauthorized') || detail.includes('denied')) {
-        return errorResponse(res, 401, 'REGISTRY_AUTH_FAILED',
-          'registry authentication failed — run docker login or check TK_UPDATE_TOKEN');
-      }
-      return errorResponse(res, 500, 'PULL_FAILED', detail);
-    }
-
-    // Verify pulled image looks like a TK image
-    try {
-      const { stdout: cmd } = await execAsync(`docker inspect ${pullTarget} --format='{{json .Config.Cmd}}'`);
-      if (!cmd.includes('tsx') && !cmd.includes('index')) {
-        return errorResponse(res, 400, 'INVALID_IMAGE',
-          'pulled image does not appear to be a valid trapperkeeper image');
-      }
-    } catch {
-      // non-fatal: skip validation
-    }
-
-    // Check if compose file exists for automated restart
-    let composeAvailable = false;
-    try {
-      await fs.access(cfg.composePath);
-      composeAvailable = true;
-    } catch {
-      // no compose file
-    }
-
-    if (!composeAvailable) {
-      return res.json({
-        success: true,
-        pulled: pullTarget,
-        pullOutput: pullOutput.trim(),
-        restarting: false,
-        error: 'COMPOSE_NOT_FOUND',
-        detail: 'image pulled successfully, but no compose file is mounted — the container cannot restart itself.',
-        manual: 'docker compose pull && docker compose up -d',
-        hint: 'add this to your docker-compose.yml volumes:\n  - ./docker-compose.yml:/app/docker-compose.yml:ro',
-      });
-    }
-
-    // Respond before restarting
-    res.json({
-      success: true,
-      message: 'image pulled, restarting container...',
-      pulled: pullTarget,
-      pullOutput: pullOutput.trim(),
-      restarting: true,
-      expectedVersion: tag ? tag.replace(/^v/, '') : undefined,
+    await saveRollbackInfo({
+      previousImage: `${cfg.image}:${currentVersion.version}`,
+      previousVersion: currentVersion.version,
+      newImage: pullTarget,
+      timestamp: new Date().toISOString(),
     });
+  } catch {}
 
-    // Restart after response flushes
-    setTimeout(async () => {
-      try {
-        await restartContainer(cfg);
-      } catch (err: any) {
-        console.error('[update] restart failed:', err.message);
-      }
-    }, 500);
+  // Check if warden is available
+  if (!await isWardenAvailable()) {
+    return errorResponse(res, 503, 'DOCKER_CLI_MISSING',
+      'warden service not available — add the warden container to your docker-compose.yml',
+      { manual: `docker pull ${pullTarget} && docker compose up -d` });
+  }
+
+  // Tell warden to pull and restart us
+  try {
+    const result = await wardenRequest('/update', 'POST', { image: pullTarget });
+    if (result.ok) {
+      res.json({
+        success: true,
+        message: 'warden is updating trapperkeeper...',
+        pulled: pullTarget,
+        restarting: true,
+        expectedVersion: tag ? tag.replace(/^v/, '') : undefined,
+      });
+    } else {
+      return errorResponse(res, 500, 'PULL_FAILED', result.error || 'warden update failed');
+    }
   } catch (err: any) {
     return errorResponse(res, 500, 'PULL_FAILED', err.message || 'update failed');
   }
@@ -496,39 +387,31 @@ router.get('/rollback', async (_req: Request, res: Response) => {
   });
 });
 
-// POST /api/update/rollback — restore previous image
+// POST /api/update/rollback — restore previous image via warden
 router.post('/rollback', async (_req: Request, res: Response) => {
   const info = await getRollbackInfo();
   if (!info?.previousImage) {
     return errorResponse(res, 400, 'CONFIG_MISSING', 'no rollback info available');
   }
 
-  if (!await hasDockerSocket() || !await hasDockerCLI()) {
-    return errorResponse(res, 400, 'DOCKER_SOCKET_MISSING',
-      'docker not available for rollback',
+  if (!await isWardenAvailable()) {
+    return errorResponse(res, 503, 'DOCKER_CLI_MISSING',
+      'warden not available for rollback',
       { manual: `docker pull ${info.previousImage} && docker compose up -d` });
   }
 
-  const cfg = getUpdateConfig();
-
   try {
-    // Tag the previous image as latest so compose picks it up
-    await execAsync(`docker tag ${info.previousImage} ${cfg.image}:latest`, { timeout: 30000 });
-
-    res.json({
-      success: true,
-      message: 'rolling back, restarting container...',
-      restarting: true,
-      rollingBackTo: info.previousVersion,
-    });
-
-    setTimeout(async () => {
-      try {
-        await restartContainer(cfg);
-      } catch (err: any) {
-        console.error('[update] rollback restart failed:', err.message);
-      }
-    }, 500);
+    const result = await wardenRequest('/update', 'POST', { image: info.previousImage });
+    if (result.ok) {
+      res.json({
+        success: true,
+        message: 'warden is rolling back...',
+        restarting: true,
+        rollingBackTo: info.previousVersion,
+      });
+    } else {
+      return errorResponse(res, 500, 'COMPOSE_RESTART_FAILED', result.error || 'rollback failed');
+    }
   } catch (err: any) {
     return errorResponse(res, 500, 'COMPOSE_RESTART_FAILED', err.message);
   }
@@ -537,19 +420,13 @@ router.post('/rollback', async (_req: Request, res: Response) => {
 // GET /api/update/config — return (sanitized) update config
 router.get('/config', async (_req: Request, res: Response) => {
   const cfg = getUpdateConfig();
-  let composeMounted = false;
-  try { await fs.access(cfg.composePath); composeMounted = true; } catch {}
-
   res.json({
     provider: cfg.provider,
     apiUrl: cfg.apiUrl,
     repo: cfg.repo,
     image: cfg.image,
     hasToken: !!cfg.token,
-    composePath: cfg.composePath,
-    composeMounted,
-    dockerSocket: await hasDockerSocket(),
-    dockerCLI: await hasDockerCLI(),
+    wardenAvailable: await isWardenAvailable(),
   });
 });
 
@@ -569,8 +446,6 @@ services:
       - "3443:3443"
     volumes:
       - trapperkeeper-data:/app/data
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./docker-compose.yml:/app/docker-compose.yml:ro
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -581,6 +456,17 @@ services:
       - TK_UPDATE_REPO=torresmva/trapperkeeper
       - TK_UPDATE_API_URL=https://api.github.com
       - TK_UPDATE_IMAGE=ghcr.io/torresmva/trapperkeeper
+      - TK_WARDEN_URL=http://tk-warden:3002
+
+  warden:
+    image: ghcr.io/torresmva/trapperkeeper-warden:latest
+    container_name: tk-warden
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    environment:
+      - TK_CONTAINER=trapperkeeper
+      - TK_HEALTH_URL=http://trapperkeeper:3001/api/update/health
 
 volumes:
   trapperkeeper-data:

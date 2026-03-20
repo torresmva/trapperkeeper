@@ -13,9 +13,6 @@ services:
       - "3443:3443"
     volumes:
       - trapperkeeper-data:/app/data
-      - /var/run/docker.sock:/var/run/docker.sock
-      # mount this compose file so the container can restart itself on update
-      - ./docker-compose.yml:/app/docker-compose.yml:ro
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -28,11 +25,21 @@ services:
       - TK_UPDATE_API_URL=${TK_UPDATE_API_URL:-https://api.github.com}
       - TK_UPDATE_IMAGE=${TK_UPDATE_IMAGE:-ghcr.io/torresmva/trapperkeeper}
       - TK_UPDATE_TOKEN=${TK_UPDATE_TOKEN:-}
-      # for private gitlab instead:
-      #   TK_UPDATE_PROVIDER=gitlab
-      #   TK_UPDATE_REPO=home-projects/trapperkeeper
-      #   TK_UPDATE_API_URL=http://your-gitlab:8080
-      #   TK_UPDATE_IMAGE=your-registry:5050/home-projects/trapperkeeper
+      - TK_WARDEN_URL=http://tk-warden:3002
+
+  warden:
+    build:
+      context: ./warden
+    image: ghcr.io/torresmva/trapperkeeper-warden:latest
+    container_name: tk-warden
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    environment:
+      - TK_CONTAINER=trapperkeeper
+      - TK_HEALTH_URL=http://trapperkeeper:3001/api/update/health
+      - HEALTH_INTERVAL=30
+      - MAX_FAILURES=3
 
 volumes:
   trapperkeeper-data:
