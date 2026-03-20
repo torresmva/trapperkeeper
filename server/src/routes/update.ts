@@ -250,11 +250,21 @@ async function restartContainer(_cfg: UpdateConfig): Promise<void> {
 
   // Spawn a sidecar container that outlives this one.
   // Mount both the docker socket and the host compose file.
+  // Read compose project name from labels
+  let project = 'trapperkeeper';
+  try {
+    const { stdout } = await execAsync(
+      `docker inspect trapperkeeper --format='{{index .Config.Labels "com.docker.compose.project"}}'`
+    );
+    const parsed = stdout.trim().replace(/'/g, '');
+    if (parsed) project = parsed;
+  } catch {}
+
   const script = [
     'sleep 3',
     'docker stop trapperkeeper 2>/dev/null || true',
     'docker rm trapperkeeper 2>/dev/null || true',
-    `docker compose -f /compose/docker-compose.yml up -d --no-build`,
+    `docker compose -p ${project} -f /compose/docker-compose.yml up -d --no-build`,
   ].join(' && ');
 
   await execAsync(
