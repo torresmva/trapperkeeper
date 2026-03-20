@@ -142,15 +142,27 @@ router.get('/weather', async (_req, res) => {
     const cached = getCached(cacheKey);
     if (cached) return res.json(cached);
 
-    const data = await fetchJSON(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m` +
-      `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max` +
-      `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=3`
-    );
+    const [data, geo] = await Promise.all([
+      fetchJSON(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m` +
+        `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max` +
+        `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=3`
+      ),
+      fetchJSON(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`,
+        5000,
+        { 'User-Agent': BOT_UA }
+      ).catch(() => null),
+    ]);
 
-    setCache(cacheKey, data, 15 * 60 * 1000); // 15 min
-    res.json(data);
+    const addr = geo?.address || {};
+    const city = addr.city || addr.town || addr.village || '';
+    const state = addr.state || '';
+
+    const result = { ...data, city, state };
+    setCache(cacheKey, result, 15 * 60 * 1000); // 15 min
+    res.json(result);
   } catch (err: any) {
     res.status(502).json({ error: 'Weather fetch failed', message: err.message });
   }

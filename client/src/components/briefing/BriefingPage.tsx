@@ -52,6 +52,8 @@ interface WeatherData {
     precipitation_probability_max: number[];
     time: string[];
   };
+  city?: string;
+  state?: string;
 }
 
 interface NewsItem {
@@ -125,7 +127,9 @@ function WeatherPanel({ data, loading }: { data: WeatherData | null; loading: bo
 
   return (
     <div style={panelStyle}>
-      <SectionLabel icon={<span style={{ fontSize: '12px' }}>{w.icon}</span>}>weather</SectionLabel>
+      <SectionLabel icon={<span style={{ fontSize: '12px' }}>{w.icon}</span>}>
+        weather{data.city ? ` · ${data.city.toLowerCase()}${data.state ? `, ${data.state.toLowerCase()}` : ''}` : ''}
+      </SectionLabel>
 
       {/* Current */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
