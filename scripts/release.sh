@@ -81,8 +81,14 @@ echo ">> pushing $IMAGE:latest..."
 docker push "$IMAGE:latest"
 
 # Push git
-echo ">> pushing git..."
+echo ">> pushing to origin (gitlab)..."
 git push origin "$BRANCH" --tags
+
+# Push tags to github if remote exists
+if git remote get-url github >/dev/null 2>&1; then
+  echo ">> pushing tags to github..."
+  git push github --tags 2>/dev/null || echo "   (github push failed — push tags manually: git push github --tags)"
+fi
 
 echo ""
 echo "── done ──"
