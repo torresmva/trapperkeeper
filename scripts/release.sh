@@ -12,13 +12,20 @@ set -euo pipefail
 
 VERSION="${1:-}"
 IMAGE="${RELEASE_IMAGE:-ghcr.io/torresmva/trapperkeeper}"
-GITHUB_TOKEN="${GITHUB_TOKEN:-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}"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_REPO="${GITHUB_REPO:-torresmva/trapperkeeper}"
 GITHUB_API="https://api.github.com"
 
 if [[ -z "$VERSION" ]]; then
-  echo "usage: ./scripts/release.sh <version>"
-  echo "example: ./scripts/release.sh 1.2.0"
+  echo "usage: GITHUB_TOKEN=ghp_... ./scripts/release.sh <version>"
+  echo "example: GITHUB_TOKEN=ghp_xxx ./scripts/release.sh 1.2.0"
+  exit 1
+fi
+
+if [[ -z "$GITHUB_TOKEN" ]]; then
+  echo "error: GITHUB_TOKEN is required (pass via env)"
+  echo "  generate at: https://github.com/settings/tokens"
+  echo "  usage: GITHUB_TOKEN=ghp_... ./scripts/release.sh $VERSION"
   exit 1
 fi
 
