@@ -81,7 +81,7 @@ export function Sidebar() {
   const [crt, setCrt] = useState(() => localStorage.getItem('tk-crt') === 'true');
   const location = useLocation();
   const navigate = useNavigate();
-  const tagline = useRotatingQuote('sidebar', 'trapping knowledge');
+  const tagline = useRotatingQuote();
   const { activeSpace, setActiveSpace, spaces, addSpace } = useSpace();
 
   const toggleCrt = useCallback(() => {

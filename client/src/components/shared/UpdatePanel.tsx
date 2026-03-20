@@ -65,11 +65,12 @@ export function UpdateBadge() {
 // Sys modal — tabbed: about | updates | data backup
 // ═══════════════════════════════════════════════════════════════════
 
-type Tab = 'about' | 'updates' | 'backup';
+type Tab = 'about' | 'updates' | 'slogans' | 'backup';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'about', label: 'about' },
   { key: 'updates', label: 'updates' },
+  { key: 'slogans', label: 'slogans' },
   { key: 'backup', label: 'data backup' },
 ];
 
@@ -188,6 +189,7 @@ function SysModal({ onClose }: { onClose: () => void }) {
         <div style={{ overflow: 'auto', flex: 1 }}>
           {tab === 'about' && <AboutTab />}
           {tab === 'updates' && <UpdatesTab />}
+          {tab === 'slogans' && <SlogansTab />}
           {tab === 'backup' && <BackupTab />}
         </div>
       </div>
@@ -451,6 +453,102 @@ interface GitStatus {
   lastCommit: { hash: string; date: string; message: string } | null;
   dirty: boolean;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Tab: Slogans
+// ═══════════════════════════════════════════════════════════════════
+
+function SlogansTab() {
+  const [slogans, setSlogans] = useState<string[]>([]);
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    api.getSlogans()
+      .then(res => {
+        setSlogans(res.slogans);
+        setText(res.slogans.join('\n'));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+      const res = await api.saveSlogans(lines);
+      setSlogans(res.slogans);
+      setText(res.slogans.join('\n'));
+      // Invalidate the cache so the sidebar picks up changes
+      const { invalidateSlogansCache } = await import('../../hooks/useQuotes');
+      invalidateSlogansCache();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {}
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ padding: '16px 24px 20px' }}>
+      <SectionLabel>sidebar slogans</SectionLabel>
+      <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: 4, marginBottom: 12 }}>
+        one per line. these rotate in the sidebar under the logo.
+        {slogans.length > 0 && ` (${slogans.length} active)`}
+        {slogans.length === 0 && !loading && ' using built-in defaults.'}
+      </div>
+
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder={'trapping knowledge\nwrite it down\nship the log\nbrain on disk'}
+        rows={12}
+        style={{
+          width: '100%',
+          background: 'var(--bg-input)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border)',
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '11px',
+          padding: '10px 12px',
+          lineHeight: '1.8',
+          resize: 'vertical',
+        }}
+      />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            color: 'var(--accent-primary)',
+            border: '1px solid var(--accent-primary)',
+            background: 'transparent',
+            padding: '5px 14px',
+            fontSize: '10px',
+            cursor: saving ? 'default' : 'pointer',
+            opacity: saving ? 0.5 : 1,
+          }}
+        >
+          {saving ? 'saving...' : 'save'}
+        </button>
+        {saved && (
+          <span style={{ fontSize: '10px', color: 'var(--accent-green)' }}>saved</span>
+        )}
+        <span style={{ fontSize: '9px', color: 'var(--text-muted)', flex: 1, textAlign: 'right' }}>
+          {text.split('\n').filter(s => s.trim()).length} slogans
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Tab: Data Backup
+// ═══════════════════════════════════════════════════════════════════
 
 function BackupTab() {
   const [status, setStatus] = useState<GitStatus | null>(null);

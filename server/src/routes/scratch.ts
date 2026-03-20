@@ -32,4 +32,25 @@ router.put('/sprint', async (req: Request, res: Response) => {
   res.json(sprint);
 });
 
+// === Slogans ===
+
+router.get('/slogans', async (_req: Request, res: Response) => {
+  try {
+    const data = await fs.readFile(config.slogansFile, 'utf-8');
+    res.json(JSON.parse(data));
+  } catch {
+    res.json({ slogans: [] });
+  }
+});
+
+router.put('/slogans', async (req: Request, res: Response) => {
+  const { slogans } = req.body;
+  if (!Array.isArray(slogans)) {
+    return res.status(400).json({ error: 'slogans must be an array of strings' });
+  }
+  const clean = slogans.filter((s: any) => typeof s === 'string' && s.trim()).map((s: string) => s.trim());
+  await fs.writeFile(config.slogansFile, JSON.stringify({ slogans: clean }, null, 2));
+  res.json({ slogans: clean });
+});
+
 export default router;

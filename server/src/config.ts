@@ -23,4 +23,5 @@ export const config = {
   oublietteDir: path.join(ROOT, 'data', 'oubliette'),
   wireServicesFile: path.join(ROOT, 'data', 'wire-services.json'),
   wireConfigFile: path.join(ROOT, 'data', 'wire-config.json'),
+  slogansFile: path.join(ROOT, 'data', 'slogans.json'),
 };

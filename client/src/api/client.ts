@@ -293,6 +293,11 @@ export const api = {
   getOnThisDay: () => request<{ label: string; date: string; entries: { id: string; title: string; type: string; category: string }[] }[]>('/standup/on-this-day'),
 
 
+  // Slogans
+  getSlogans: () => request<{ slogans: string[] }>('/scratch/slogans'),
+  saveSlogans: (slogans: string[]) =>
+    request<{ slogans: string[] }>('/scratch/slogans', { method: 'PUT', body: JSON.stringify({ slogans }) }),
+
   // Sprint
   getSprint: () => request<{ name: string; startDate: string; endDate: string; major: string; minor: string } | null>('/scratch/sprint'),
   saveSprint: (data: { name: string; startDate: string; endDate: string; major: string; minor: string }) =>
