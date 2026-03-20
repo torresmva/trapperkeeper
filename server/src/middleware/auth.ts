@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
-const TK_PASSWORD = process.env.TK_PASSWORD || 'rocco';
-const TOKEN_SECRET = process.env.TK_SECRET || 'trapperkeeper-auth-2026';
+const TK_PASSWORD = process.env.TK_PASSWORD ?? 'changeme';
+const TOKEN_SECRET = process.env.TK_SECRET || crypto.randomBytes(32).toString('hex');
 
 export function generateToken(password: string): string {
   return crypto.createHmac('sha256', TOKEN_SECRET).update(password).digest('hex');

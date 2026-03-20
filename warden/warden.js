@@ -94,8 +94,9 @@ async function doUpdate(image) {
     let envFile = '';
     try {
       const envs = run(`docker inspect ${TK} --format='{{range .Config.Env}}{{println .}}{{end}}'`);
-      require('fs').writeFileSync('/tmp/tk-env', envs.replace(/'/g, ''));
-      envFile = '--env-file /tmp/tk-env';
+      const envPath = `/tmp/tk-env-${Date.now()}`;
+      require('fs').writeFileSync(envPath, envs.replace(/'/g, ''));
+      envFile = `--env-file ${envPath}`;
     } catch {}
 
     // Restart policy
@@ -157,7 +158,7 @@ async function doUpdate(image) {
     return { ok: false, error: err.message };
   } finally {
     updating = false;
-    try { require('fs').unlinkSync('/tmp/tk-env'); } catch {}
+    try { const fs = require('fs'); fs.readdirSync('/tmp').filter(f => f.startsWith('tk-env-')).forEach(f => fs.unlinkSync(`/tmp/${f}`)); } catch {}
   }
 }
 

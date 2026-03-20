@@ -1,5 +1,5 @@
 FROM node:18-alpine
-RUN apk add --no-cache docker-cli docker-cli-compose curl
+RUN apk add --no-cache docker-cli docker-cli-compose curl wget
 WORKDIR /app
 COPY warden.js .
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

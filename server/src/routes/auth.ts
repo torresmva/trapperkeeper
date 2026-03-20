@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { generateToken, isValidToken } from '../middleware/auth';
 
 const router = Router();
-const TK_PASSWORD = process.env.TK_PASSWORD || 'rocco';
+const TK_PASSWORD = process.env.TK_PASSWORD ?? 'changeme';
 
 // POST /api/auth/login
 router.post('/login', (req: Request, res: Response) => {
