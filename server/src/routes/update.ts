@@ -218,21 +218,33 @@ function getWardenUrl(): string {
 
 async function wardenRequest(path: string, method = 'GET', body?: any): Promise<any> {
   const url = `${getWardenUrl()}${path}`;
-  const options: any = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) options.body = JSON.stringify(body);
+  const payload = body ? JSON.stringify(body) : undefined;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  options.signal = controller.signal;
-
-  try {
-    const res = await fetch(url, options);
-    clearTimeout(timeout);
-    return await res.json();
-  } catch (err: any) {
-    clearTimeout(timeout);
-    throw new Error(`warden unreachable at ${url}: ${err.message}`);
-  }
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const req = http.request({
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.pathname,
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
+      },
+      timeout: 10000,
+    }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { reject(new Error(`invalid json from warden: ${data}`)); }
+      });
+    });
+    req.on('error', (err) => reject(new Error(`warden unreachable at ${url}: ${err.message}`)));
+    req.on('timeout', () => { req.destroy(); reject(new Error(`warden timeout at ${url}`)); });
+    if (payload) req.write(payload);
+    req.end();
+  });
 }
 
 async function isWardenAvailable(): Promise<boolean> {
