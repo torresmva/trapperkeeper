@@ -455,7 +455,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - SSL_PORT=3443
-      - TK_PASSWORD=changeme
+      - TK_PASSWORD=rocco
       - TK_UPDATE_PROVIDER=github
       - TK_UPDATE_REPO=torresmva/trapperkeeper
       - TK_UPDATE_API_URL=https://api.github.com

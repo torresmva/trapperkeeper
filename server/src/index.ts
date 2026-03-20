@@ -121,8 +121,21 @@ async function main() {
   await buildIndex();
 
   // Start HTTP server
+  const tkPassword = process.env.TK_PASSWORD ?? 'rocco';
   const httpServer = app.listen(config.port, '0.0.0.0', () => {
-    console.log(`TrapperKeeper running on http://localhost:${config.port}`);
+    console.log('');
+    console.log('  ┌──────────────────────────────────────┐');
+    console.log(`  │  trapperkeeper                        │`);
+    console.log(`  │  http://localhost:${config.port}                │`);
+    if (tkPassword === '') {
+      console.log('  │  auth: disabled                       │');
+    } else {
+      console.log(`  │  password: ${tkPassword.padEnd(26)}│`);
+    }
+    console.log('  │                                      │');
+    console.log('  │  set TK_PASSWORD env to change       │');
+    console.log('  └──────────────────────────────────────┘');
+    console.log('');
   });
 
   // Start HTTPS server if enabled

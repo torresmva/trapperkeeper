@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
-const TK_PASSWORD = process.env.TK_PASSWORD ?? 'changeme';
+const TK_PASSWORD = process.env.TK_PASSWORD ?? 'rocco';
 const TOKEN_SECRET = process.env.TK_SECRET || crypto.randomBytes(32).toString('hex');
 
 export function generateToken(password: string): string {

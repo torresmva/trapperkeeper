@@ -18,7 +18,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - SSL_PORT=3443
-      - TK_PASSWORD=${TK_PASSWORD:-changeme}
+      - TK_PASSWORD=${TK_PASSWORD:-rocco}
       # ── self-update ──
       - TK_UPDATE_PROVIDER=${TK_UPDATE_PROVIDER:-github}
       - TK_UPDATE_REPO=${TK_UPDATE_REPO:-torresmva/trapperkeeper}

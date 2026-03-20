@@ -22,7 +22,7 @@ services:
       - trapperkeeper-data:/app/data
     restart: unless-stopped
     environment:
-      - TK_PASSWORD=changeme       # set your password, or leave empty to disable auth
+      - TK_PASSWORD=rocco           # change this, or leave empty to disable auth
       - TK_WARDEN_URL=http://tk-warden:3002
 
   warden:
@@ -46,7 +46,7 @@ then:
 docker compose up -d
 ```
 
-open `http://localhost:3001`. default password is `changeme` — change it in your compose file.
+open `http://localhost:3001`. default password is `rocco` — change it via `TK_PASSWORD` in your compose file, or set it empty to disable auth.
 
 ## persistent data
 
@@ -75,7 +75,7 @@ trapperkeeper auto-generates a self-signed SSL cert on first run. access via `ht
 
 | variable | default | description |
 |----------|---------|-------------|
-| `TK_PASSWORD` | `changeme` | login password. set empty to disable auth |
+| `TK_PASSWORD` | `rocco` | login password. set empty to disable auth |
 | `TK_SECRET` | auto-generated | token signing secret. set for stable sessions across restarts |
 | `PORT` | `3001` | http port |
 | `SSL_PORT` | `3443` | https port |
