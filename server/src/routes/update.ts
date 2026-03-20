@@ -233,7 +233,7 @@ async function restartContainer(cfg: UpdateConfig): Promise<void> {
   } catch {}
 
   const projectFlag = project ? `-p ${project}` : '';
-  await execAsync(`docker compose ${projectFlag} -f ${cfg.composePath} up -d`, {
+  await execAsync(`docker compose ${projectFlag} -f ${cfg.composePath} up -d --no-build`, {
     timeout: 60000,
   });
 }
