@@ -21,13 +21,21 @@ COPY server/ ./server/
 FROM node:18-alpine
 WORKDIR /app
 
-# Install tsx for running TypeScript directly + openssl for self-signed certs
-RUN apk add --no-cache openssl && npm install -g tsx
+# Version info — pass at build time
+ARG TK_VERSION=dev
+ARG TK_COMMIT=unknown
+ARG TK_BRANCH=main
+
+# Install tsx for running TypeScript directly + openssl for self-signed certs + docker CLI for self-update
+RUN apk add --no-cache openssl docker-cli && npm install -g tsx
 
 COPY --from=server-build /app/node_modules ./node_modules
 COPY --from=server-build /app/server ./server
 COPY --from=server-build /app/package.json ./
 COPY --from=client-build /app/client/dist ./client/dist
+
+# Bake version info into the image
+RUN echo "{\"version\":\"${TK_VERSION}\",\"commit\":\"${TK_COMMIT}\",\"buildDate\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"branch\":\"${TK_BRANCH}\"}" > /app/VERSION.json
 
 # Data directory — mount your persistent volume here
 RUN mkdir -p /app/data/journal /app/data/notes /app/data/templates /app/data/assets
@@ -35,6 +43,9 @@ VOLUME ["/app/data"]
 
 # Copy default templates
 COPY data/templates/ /app/data/templates/
+
+# Copy docker-compose.yml for self-update
+COPY docker-compose.yml /app/docker-compose.yml
 
 ENV NODE_ENV=production
 ENV PORT=3001

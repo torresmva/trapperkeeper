@@ -6,6 +6,7 @@ import { SprintCard } from '../shared/SprintCard';
 import { ParkingLot } from '../shared/ParkingLot';
 import { useRandomQuote } from '../../hooks/useQuotes';
 import { useSpace } from '../../contexts/SpaceContext';
+import { UpdateBadge } from '../shared/UpdatePanel';
 
 interface NavItem {
   to: string;
@@ -418,6 +419,9 @@ export function Sidebar() {
 
       {/* Git Sync */}
       {!collapsed && <GitSync />}
+
+      {/* System / Update */}
+      {!collapsed && <UpdateBadge />}
 
       {/* Footer */}
       {!collapsed && (
