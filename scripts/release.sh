@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # ── trapperkeeper release script ──────────────────────────────────
-# usage: ./scripts/release.sh <version>
-# example: ./scripts/release.sh 1.2.0
+# usage: GITHUB_TOKEN=ghp_... ./scripts/release.sh <version> [changelog]
+# example: GITHUB_TOKEN=ghp_xxx ./scripts/release.sh 1.2.0
+# example: GITHUB_TOKEN=ghp_xxx ./scripts/release.sh 1.2.0 "added weather location, fixed self-update"
 #
 # override via env:
 #   RELEASE_IMAGE=ghcr.io/torresmva/trapperkeeper
@@ -11,14 +12,16 @@ set -euo pipefail
 #   GITHUB_REPO=torresmva/trapperkeeper
 
 VERSION="${1:-}"
+CUSTOM_CHANGELOG="${2:-}"
 IMAGE="${RELEASE_IMAGE:-ghcr.io/torresmva/trapperkeeper}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_REPO="${GITHUB_REPO:-torresmva/trapperkeeper}"
 GITHUB_API="https://api.github.com"
 
 if [[ -z "$VERSION" ]]; then
-  echo "usage: GITHUB_TOKEN=ghp_... ./scripts/release.sh <version>"
+  echo "usage: GITHUB_TOKEN=ghp_... ./scripts/release.sh <version> [changelog]"
   echo "example: GITHUB_TOKEN=ghp_xxx ./scripts/release.sh 1.2.0"
+  echo "example: GITHUB_TOKEN=ghp_xxx ./scripts/release.sh 1.2.0 \"added weather location\""
   exit 1
 fi
 
@@ -91,13 +94,14 @@ docker push "$IMAGE:$VERSION"
 echo ">> pushing $IMAGE:latest..."
 docker push "$IMAGE:latest"
 
-# ── push git to all remotes ──────────────────────────────────────
+# ── push git to remotes ──────────────────────────────────────────
 
 echo ">> pushing to origin..."
-git push origin "$BRANCH" --tags
+git push origin "$BRANCH"
+git push origin tag "$TAG"
 
 if git remote get-url github >/dev/null 2>&1; then
-  echo ">> pushing tags to github (tags only — code stays on gitlab)..."
+  echo ">> pushing tag to github (tag only — code stays on gitlab)..."
   git push github tag "$TAG"
 fi
 
@@ -105,12 +109,16 @@ fi
 
 echo ">> creating github release $TAG..."
 
-# build changelog from commits since last tag
-PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1 || true)
-if [[ -n "$PREV_TAG" ]]; then
-  CHANGELOG=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG}" -- | grep -v "^- release:" || true)
+if [[ -n "$CUSTOM_CHANGELOG" ]]; then
+  CHANGELOG="$CUSTOM_CHANGELOG"
 else
-  CHANGELOG="initial release"
+  # auto-generate from commits since last tag
+  PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1 || true)
+  if [[ -n "$PREV_TAG" ]]; then
+    CHANGELOG=$(git log --pretty=format:"- %s" "${PREV_TAG}..${TAG}" -- | grep -v "^- release:" || true)
+  else
+    CHANGELOG="initial release"
+  fi
 fi
 
 # escape for json
