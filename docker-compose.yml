@@ -13,6 +13,10 @@ services:
     environment:
       - TK_PASSWORD=rocco
       - TK_WARDEN_URL=http://tk-warden:3002
+      - TK_UPDATE_REPO=torresmva/trapperkeeper
+      - TK_UPDATE_IMAGE=ghcr.io/torresmva/trapperkeeper
+      - TK_UPDATE_API_URL=https://api.github.com
+      - TK_UPDATE_PROVIDER=github
 
   warden:
     image: ghcr.io/torresmva/trapperkeeper-warden:latest
