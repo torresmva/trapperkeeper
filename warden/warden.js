@@ -102,6 +102,13 @@ async function doUpdate(image) {
     let restart = 'unless-stopped';
     try { restart = run(`docker inspect ${TK} --format='{{.HostConfig.RestartPolicy.Name}}'`).replace(/'/g, '') || restart; } catch {}
 
+    // Networks — capture which networks the container is on (excluding bridge)
+    let networks = [];
+    try {
+      const nets = run(`docker inspect ${TK} --format='{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'`).replace(/'/g, '');
+      networks = nets.split(/\s+/).filter(n => n && n !== 'bridge');
+    } catch {}
+
     // Stop + remove
     log('stopping container...');
     try { run(`docker stop ${TK}`, 30000); } catch {}
@@ -117,11 +124,17 @@ async function doUpdate(image) {
       }
     } catch {}
 
-    // Start new
+    // Start new — use --network to join the right network from the start
     log('starting new container...');
-    const cmd = `docker run -d --name ${TK} --restart ${restart} ${envFile} ${portFlags} ${volFlags} ${image}`;
+    const networkFlag = networks.length > 0 ? `--network ${networks[0]}` : '';
+    const cmd = `docker run -d --name ${TK} --restart ${restart} ${networkFlag} ${envFile} ${portFlags} ${volFlags} ${image}`;
     log(`> ${cmd}`);
     run(cmd, 30000);
+
+    // Connect to any additional networks
+    for (let i = 1; i < networks.length; i++) {
+      try { run(`docker network connect ${networks[i]} ${TK}`); } catch {}
+    }
 
     // Wait for health
     log('waiting for health...');
