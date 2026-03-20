@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AccentPicker } from '../shared/AccentPicker';
-import { GitSync } from '../shared/GitSync';
 import { SprintCard } from '../shared/SprintCard';
 import { ParkingLot } from '../shared/ParkingLot';
 import { useRandomQuote } from '../../hooks/useQuotes';
@@ -417,10 +416,7 @@ export function Sidebar() {
       {/* Parking lot */}
       {!collapsed && <ParkingLot />}
 
-      {/* Git Sync */}
-      {!collapsed && <GitSync />}
-
-      {/* System / Update */}
+      {/* System / Update / Backup */}
       {!collapsed && <UpdateBadge />}
 
       {/* Footer */}
