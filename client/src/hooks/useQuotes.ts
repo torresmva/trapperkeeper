@@ -4,21 +4,17 @@ import { api } from '../api/client';
 // ── Built-in fallback slogans ──
 
 const BUILTIN_SLOGANS = [
-  'trapping knowledge',
   'write it down',
-  'ship the log',
-  'today matters',
   'capture everything',
-  'brain on disk',
-  'never forget',
-  'log the work',
+  'stdout > \/dev\/journal',
+  'practice your politics',
   'receipts on file',
   'ink is permanent',
   'ctrl+s your brain',
-  'paper trail',
-  'journal or it didn\'t happen',
   'the daily record',
-  'work log loaded',
+  'dayman... fighter of the nightman',
+
+
 ];
 
 // ── Slogans cache ──
