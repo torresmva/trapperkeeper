@@ -371,23 +371,20 @@ router.post('/apply', async (req: Request, res: Response) => {
       { manual: `docker pull ${pullTarget} && docker compose up -d` });
   }
 
-  // Tell warden to pull and restart us
-  try {
-    const result = await wardenRequest('/update', 'POST', { image: pullTarget });
-    if (result.ok) {
-      res.json({
-        success: true,
-        message: 'warden is updating trapperkeeper...',
-        pulled: pullTarget,
-        restarting: true,
-        expectedVersion: tag ? tag.replace(/^v/, '') : undefined,
-      });
-    } else {
-      return errorResponse(res, 500, 'PULL_FAILED', result.error || 'warden update failed');
-    }
-  } catch (err: any) {
-    return errorResponse(res, 500, 'PULL_FAILED', err.message || 'update failed');
-  }
+  // Fire update to warden without waiting — it will stop this container
+  // so we need to respond to the client before that happens
+  res.json({
+    success: true,
+    message: 'warden is updating trapperkeeper...',
+    pulled: pullTarget,
+    restarting: true,
+    expectedVersion: tag ? tag.replace(/^v/, '') : undefined,
+  });
+
+  // Fire and forget — warden handles the rest
+  wardenRequest('/update', 'POST', { image: pullTarget }).catch(err => {
+    console.error('[update] warden request error (expected if container is restarting):', err.message);
+  });
 });
 
 // GET /api/update/rollback — check if rollback is available
@@ -412,21 +409,16 @@ router.post('/rollback', async (_req: Request, res: Response) => {
       { manual: `docker pull ${info.previousImage} && docker compose up -d` });
   }
 
-  try {
-    const result = await wardenRequest('/update', 'POST', { image: info.previousImage });
-    if (result.ok) {
-      res.json({
-        success: true,
-        message: 'warden is rolling back...',
-        restarting: true,
-        rollingBackTo: info.previousVersion,
-      });
-    } else {
-      return errorResponse(res, 500, 'COMPOSE_RESTART_FAILED', result.error || 'rollback failed');
-    }
-  } catch (err: any) {
-    return errorResponse(res, 500, 'COMPOSE_RESTART_FAILED', err.message);
-  }
+  res.json({
+    success: true,
+    message: 'warden is rolling back...',
+    restarting: true,
+    rollingBackTo: info.previousVersion,
+  });
+
+  wardenRequest('/update', 'POST', { image: info.previousImage }).catch(err => {
+    console.error('[update] rollback warden error (expected if container is restarting):', err.message);
+  });
 });
 
 // GET /api/update/config — return (sanitized) update config
