@@ -219,24 +219,14 @@ function AboutTab() {
         <SectionLabel>system</SectionLabel>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
           <Row
-            label="docker socket"
-            value={config?.dockerSocket ? 'connected' : 'not mounted'}
-            valueColor={config?.dockerSocket ? 'var(--accent-green)' : 'var(--text-muted)'}
-          />
-          <Row
-            label="docker cli"
-            value={config?.dockerCLI ? 'available' : 'not found'}
-            valueColor={config?.dockerCLI ? 'var(--accent-green)' : 'var(--text-muted)'}
+            label="warden"
+            value={config?.wardenAvailable ? 'connected' : 'not found'}
+            valueColor={config?.wardenAvailable ? 'var(--accent-green)' : 'var(--accent-orange)'}
           />
           {config?.repo && <Row label="repo" value={config.repo} mono />}
           {config?.image && <Row label="image" value={config.image} mono />}
-          <Row
-            label="compose"
-            value={config?.composeMounted ? 'mounted' : 'not mounted'}
-            valueColor={config?.composeMounted ? 'var(--accent-green)' : 'var(--accent-orange)'}
-          />
         </div>
-        {config && !config.composeMounted && (
+        {config && !config.wardenAvailable && (
           <div style={{
             marginTop: 10,
             color: 'var(--accent-orange)',
@@ -245,9 +235,8 @@ function AboutTab() {
             borderLeft: '2px solid var(--accent-orange)',
             paddingLeft: 12,
           }}>
-            compose file not mounted — auto-update cannot restart the container.<br />
-            add to your docker-compose.yml volumes:<br />
-            <Code>- ./docker-compose.yml:/app/docker-compose.yml:ro</Code>
+            warden not found — auto-update requires the warden container.<br />
+            add the warden service to your docker-compose.yml.
           </div>
         )}
       </div>
@@ -261,15 +250,12 @@ function AboutTab() {
 
 const ERROR_HELP: Record<string, string> = {
   CONFIG_MISSING: 'set TK_UPDATE_REPO, TK_UPDATE_IMAGE, and TK_UPDATE_API_URL in docker-compose.yml',
-  DOCKER_SOCKET_MISSING: 'add /var/run/docker.sock:/var/run/docker.sock to volumes in docker-compose.yml',
-  DOCKER_CLI_MISSING: 'rebuild the image — docker-cli should be installed in the Dockerfile',
+  DOCKER_CLI_MISSING: 'warden service not available — add the warden container to your docker-compose.yml',
   REGISTRY_AUTH_FAILED: 'run docker login on the host, or set TK_UPDATE_TOKEN',
   IMAGE_NOT_FOUND: 'the image tag was not found in the registry — was it pushed?',
-  COMPOSE_NOT_FOUND: 'add to your docker-compose.yml volumes: ./docker-compose.yml:/app/docker-compose.yml:ro',
-  COMPOSE_RESTART_FAILED: 'docker compose up -d failed — check container logs',
+  COMPOSE_RESTART_FAILED: 'warden failed to restart the container — check warden logs',
   API_UNREACHABLE: 'could not reach the update API — check TK_UPDATE_API_URL and network',
-  PULL_FAILED: 'docker pull failed — check registry access and network',
-  INVALID_IMAGE: 'the pulled image does not appear to be a valid trapperkeeper build',
+  PULL_FAILED: 'image pull failed — check registry access and network',
 };
 
 function UpdatesTab() {
