@@ -126,33 +126,38 @@ export function useUpdate() {
           setRestartElapsed(prev => prev + 1);
         }, 1000);
 
-        // Health polling
+        // Health polling — patient, waits for new version
+        let sawDown = false;
         pollRef.current = window.setInterval(async () => {
           try {
             const r = await fetch('/api/update/health');
             if (r.ok) {
               const health = await r.json();
               if (health.ok) {
-                // Check if it's actually the new version
                 if (expectedVersion && health.version === expectedVersion) {
+                  // New version is up
                   clearPolling();
-                  window.location.reload();
-                } else if (expectedVersion && health.version !== expectedVersion && health.uptime > 5) {
-                  // Server is back but running old version
+                  setStatus('verifying');
+                  // Brief pause to let server fully initialize
+                  setTimeout(() => window.location.reload(), 2000);
+                } else if (!expectedVersion && sawDown) {
+                  // No expected version but server came back after being down
+                  clearPolling();
+                  setTimeout(() => window.location.reload(), 2000);
+                } else if (expectedVersion && health.version !== expectedVersion && health.uptime > 30 && sawDown) {
+                  // Server came back but wrong version after 30s — something went wrong
                   clearPolling();
                   setStatus('restart-failed');
                   setError(`server restarted but still running v${health.version}`);
                   fetchRollback();
-                } else if (!expectedVersion) {
-                  // No expected version — just reload when server responds
-                  clearPolling();
-                  window.location.reload();
                 }
-                // else: server just booted (uptime < 5s), wait for it to settle
+                // else: still waiting for restart to happen
               }
             }
           } catch {
-            // server still down
+            // server is down — this is expected during restart
+            sawDown = true;
+            setStatus('restarting');
           }
         }, 3000);
 

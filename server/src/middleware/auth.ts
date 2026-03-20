@@ -1,8 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
+import fs from 'fs';
+import path from 'path';
+
 const TK_PASSWORD = process.env.TK_PASSWORD ?? 'rocco';
-const TOKEN_SECRET = process.env.TK_SECRET || crypto.randomBytes(32).toString('hex');
+
+// Persist the token secret so sessions survive container restarts
+function getTokenSecret(): string {
+  if (process.env.TK_SECRET) return process.env.TK_SECRET;
+  const secretFile = path.join(process.cwd(), 'data', '.tk-secret');
+  try {
+    return fs.readFileSync(secretFile, 'utf-8').trim();
+  } catch {
+    const secret = crypto.randomBytes(32).toString('hex');
+    try {
+      fs.mkdirSync(path.dirname(secretFile), { recursive: true });
+      fs.writeFileSync(secretFile, secret);
+    } catch {}
+    return secret;
+  }
+}
+
+const TOKEN_SECRET = getTokenSecret();
 
 export function generateToken(password: string): string {
   return crypto.createHmac('sha256', TOKEN_SECRET).update(password).digest('hex');
