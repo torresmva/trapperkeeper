@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   trapperkeeper:
     build:
@@ -8,14 +6,13 @@ services:
         TK_VERSION: "1.0.0"
         TK_COMMIT: "${TK_COMMIT:-dev}"
         TK_BRANCH: "${TK_BRANCH:-main}"
-    image: ${TK_UPDATE_IMAGE:-trapperkeeper:latest}
+    image: ghcr.io/torresmva/trapperkeeper:latest
     container_name: trapperkeeper
     ports:
       - "3001:3001"
       - "3443:3443"
     volumes:
       - trapperkeeper-data:/app/data
-      # Docker socket — required for self-update
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     environment:
@@ -24,23 +21,22 @@ services:
       - SSL_PORT=3443
       - TK_PASSWORD=rocco
       # ── self-update system ──
-      # Points at your GitLab instance for version checks + registry pulls
-      - TK_UPDATE_PROVIDER=${TK_UPDATE_PROVIDER:-gitlab}
-      - TK_UPDATE_REPO=${TK_UPDATE_REPO:-home-projects/trapperkeeper}
-      - TK_UPDATE_API_URL=${TK_UPDATE_API_URL:-http://192.168.0.181:8080}
-      - TK_UPDATE_IMAGE=${TK_UPDATE_IMAGE:-192.168.0.181:5050/home-projects/trapperkeeper}
+      - TK_UPDATE_PROVIDER=${TK_UPDATE_PROVIDER:-github}
+      - TK_UPDATE_REPO=${TK_UPDATE_REPO:-torresmva/trapperkeeper}
+      - TK_UPDATE_API_URL=${TK_UPDATE_API_URL:-https://api.github.com}
+      - TK_UPDATE_IMAGE=${TK_UPDATE_IMAGE:-ghcr.io/torresmva/trapperkeeper}
       - TK_UPDATE_TOKEN=${TK_UPDATE_TOKEN:-}
-      # To move to github later, swap to:
-      #   TK_UPDATE_PROVIDER=github
-      #   TK_UPDATE_REPO=<user>/trapperkeeper
-      #   TK_UPDATE_API_URL=https://api.github.com
-      #   TK_UPDATE_IMAGE=ghcr.io/<user>/trapperkeeper
+      # for private gitlab instead:
+      #   TK_UPDATE_PROVIDER=gitlab
+      #   TK_UPDATE_REPO=home-projects/trapperkeeper
+      #   TK_UPDATE_API_URL=http://your-gitlab:8080
+      #   TK_UPDATE_IMAGE=your-registry:5050/home-projects/trapperkeeper
 
 volumes:
   trapperkeeper-data:
     driver: local
-    # For fileserver deployment, change to a bind mount:
+    # for bind mount deployment:
     # driver_opts:
     #   type: none
     #   o: bind
-    #   device: /path/to/your/persistent/storage/trapperkeeper
+    #   device: /opt/trapperkeeper-data

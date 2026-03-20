@@ -56,6 +56,13 @@ async function main() {
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
 
+  // Health check — unauthenticated (used by update polling + monitoring)
+  app.get('/api/update/health', async (_req, res) => {
+    const { getVersion } = await import('./routes/update');
+    const version = await getVersion();
+    res.json({ ok: true, version: version.version, uptime: Math.floor(process.uptime()) });
+  });
+
   // Auth
   app.use('/api/auth', authRouter);
   app.use(authMiddleware);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useUpdate } from '../../hooks/useUpdate';
+import { useUpdate, UpdateStatus } from '../../hooks/useUpdate';
 import { api } from '../../api/client';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -14,7 +14,7 @@ export function UpdateBadge() {
     if (version?.updateConfigured) checkForUpdate();
   }, [version?.updateConfigured]);
 
-  const dotColor = STATUS_COLORS[status];
+  const dotColor = STATUS_COLORS[status] || 'var(--text-muted)';
 
   return (
     <>
@@ -206,7 +206,6 @@ function AboutTab() {
 
   return (
     <div style={{ padding: '16px 24px 20px' }}>
-      {/* Build info */}
       <SectionLabel>build</SectionLabel>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
         <Row label="version" value={version?.version || '—'} mono />
@@ -216,7 +215,6 @@ function AboutTab() {
         <Row label="provider" value={version?.provider || '—'} />
       </div>
 
-      {/* System */}
       <div style={{ marginTop: 20 }}>
         <SectionLabel>system</SectionLabel>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
@@ -243,27 +241,42 @@ function AboutTab() {
 // Tab: Updates
 // ═══════════════════════════════════════════════════════════════════
 
+const ERROR_HELP: Record<string, string> = {
+  CONFIG_MISSING: 'set TK_UPDATE_REPO, TK_UPDATE_IMAGE, and TK_UPDATE_API_URL in docker-compose.yml',
+  DOCKER_SOCKET_MISSING: 'add /var/run/docker.sock:/var/run/docker.sock to volumes in docker-compose.yml',
+  DOCKER_CLI_MISSING: 'rebuild the image — docker-cli should be installed in the Dockerfile',
+  REGISTRY_AUTH_FAILED: 'run docker login on the host, or set TK_UPDATE_TOKEN',
+  IMAGE_NOT_FOUND: 'the image tag was not found in the registry — was it pushed?',
+  COMPOSE_NOT_FOUND: 'the compose file is missing inside the container — rebuild the image',
+  COMPOSE_RESTART_FAILED: 'docker compose up -d failed — check container logs',
+  API_UNREACHABLE: 'could not reach the update API — check TK_UPDATE_API_URL and network',
+  PULL_FAILED: 'docker pull failed — check registry access and network',
+  INVALID_IMAGE: 'the pulled image does not appear to be a valid trapperkeeper build',
+};
+
 function UpdatesTab() {
   const {
-    version, check, status, error, pullMessage,
-    checkForUpdate, applyUpdate,
+    version, check, rollback, status, error, errorCode, pullMessage, restartElapsed,
+    checkForUpdate, applyUpdate, fetchRollback, applyRollback,
   } = useUpdate();
 
   useEffect(() => {
     if (version?.updateConfigured && !check) checkForUpdate();
   }, [version?.updateConfigured]);
 
-  const statusColor = STATUS_COLORS[status];
-  const statusLabel = STATUS_LABELS[status];
+  useEffect(() => {
+    fetchRollback();
+  }, [fetchRollback]);
+
+  const statusColor = STATUS_COLORS[status] || 'var(--text-muted)';
+  const statusLabel = STATUS_LABELS[status] || status;
+
+  const isRestarting = status === 'restarting' || status === 'verifying';
 
   return (
     <div style={{ padding: '16px 24px 20px' }}>
       {/* Status */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <SectionLabel>status</SectionLabel>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '9px', color: statusColor }}>
           <span style={{
@@ -273,16 +286,26 @@ function UpdatesTab() {
             animation: PULSING_STATES.includes(status) ? 'tk-pulse 1s infinite' : 'none',
           }} />
           {statusLabel}
+          {isRestarting && restartElapsed > 0 && (
+            <span style={{ color: 'var(--text-muted)' }}>({restartElapsed}s)</span>
+          )}
         </span>
       </div>
 
-      {/* Current version */}
+      {/* Current/Latest */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
         <Row label="current" value={version?.version || '—'} mono />
-        {check && <Row label="latest" value={check.latest} mono valueColor={check.updateAvailable ? 'var(--accent-orange)' : 'var(--accent-green)'} />}
+        {check && (
+          <Row
+            label="latest"
+            value={check.latest}
+            mono
+            valueColor={check.updateAvailable ? 'var(--accent-orange)' : 'var(--accent-green)'}
+          />
+        )}
       </div>
 
-      {/* Update available details */}
+      {/* Update available */}
       {check?.updateAvailable && (
         <div style={{
           marginTop: 14,
@@ -314,33 +337,23 @@ function UpdatesTab() {
       {error && (
         <div style={{
           marginTop: 12,
-          color: 'var(--accent-pink)',
-          fontSize: '10px',
           borderLeft: '2px solid var(--accent-pink)',
           paddingLeft: 12,
-          lineHeight: '1.4',
         }}>
-          {error}
+          <div style={{ color: 'var(--accent-pink)', fontSize: '10px', lineHeight: '1.4' }}>
+            {error}
+          </div>
+          {errorCode && ERROR_HELP[errorCode] && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '9px', marginTop: 4, lineHeight: '1.4' }}>
+              {ERROR_HELP[errorCode]}
+            </div>
+          )}
         </div>
       )}
 
       {/* Manual command */}
       {pullMessage && (
-        <div
-          style={{
-            marginTop: 12,
-            background: 'rgba(255,255,255,0.03)',
-            padding: '8px 12px',
-            fontSize: '10px',
-            color: 'var(--text-muted)',
-            borderLeft: '2px solid var(--border)',
-            cursor: 'pointer',
-          }}
-          onClick={() => navigator.clipboard.writeText(pullMessage)}
-          title="click to copy"
-        >
-          <span style={{ opacity: 0.5 }}>$ </span>{pullMessage}
-        </div>
+        <Code>{pullMessage}</Code>
       )}
 
       {/* Unconfigured hint */}
@@ -354,30 +367,43 @@ function UpdatesTab() {
           paddingLeft: 12,
         }}>
           set environment variables to enable auto-updates:<br />
-          <span style={{ color: 'var(--text-secondary)' }}>TK_UPDATE_REPO</span> — gitlab/github repo path<br />
-          <span style={{ color: 'var(--text-secondary)' }}>TK_UPDATE_IMAGE</span> — docker registry image
+          <span style={{ color: 'var(--text-secondary)' }}>TK_UPDATE_REPO</span> — github repo (user/repo)<br />
+          <span style={{ color: 'var(--text-secondary)' }}>TK_UPDATE_IMAGE</span> — ghcr.io/user/repo
         </div>
       )}
 
-      {/* Action buttons */}
+      {/* Actions */}
       <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
         <ActionButton
           onClick={checkForUpdate}
-          disabled={status === 'checking' || status === 'pulling' || status === 'restarting'}
+          disabled={status === 'checking' || status === 'pulling' || isRestarting}
           label={status === 'checking' ? 'checking...' : 'check for updates'}
         />
-        {check?.updateAvailable && (
+        {check?.updateAvailable && !isRestarting && status !== 'restart-timeout' && (
           <ActionButton
             onClick={() => applyUpdate(check.latestTag)}
-            disabled={status === 'pulling' || status === 'restarting'}
-            label={status === 'pulling' ? 'pulling...' : status === 'restarting' ? 'restarting...' : 'apply update'}
+            disabled={status === 'pulling'}
+            label={status === 'pulling' ? 'pulling...' : 'apply update'}
             accent
+          />
+        )}
+        {(status === 'restart-failed' || status === 'restart-timeout') && rollback?.available && (
+          <ActionButton
+            onClick={applyRollback}
+            label="rollback"
+            accent
+          />
+        )}
+        {status === 'restart-timeout' && (
+          <ActionButton
+            onClick={() => checkForUpdate()}
+            label="retry"
           />
         )}
       </div>
 
       {/* Restarting overlay */}
-      {status === 'restarting' && (
+      {isRestarting && (
         <div style={{
           position: 'absolute',
           inset: 0,
@@ -395,11 +421,13 @@ function UpdatesTab() {
             textTransform: 'uppercase',
             animation: 'tk-pulse 1s infinite',
           }}>
-            restarting...
+            {status === 'verifying' ? 'verifying...' : 'restarting...'}
           </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-            page will reload when ready
-          </div>
+          {restartElapsed > 0 && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+              {restartElapsed}s — page will reload when ready
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -477,23 +505,14 @@ function BackupTab() {
 
   return (
     <div style={{ padding: '16px 24px 20px' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <SectionLabel>data repository</SectionLabel>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '9px', color: statusColor }}>
-          <span style={{
-            width: 6, height: 6,
-            background: statusColor,
-            display: 'inline-block',
-          }} />
+          <span style={{ width: 6, height: 6, background: statusColor, display: 'inline-block' }} />
           {statusLabel}
         </span>
       </div>
 
-      {/* Not initialized */}
       {!status?.initialized && (
         <div style={{
           marginTop: 12,
@@ -511,7 +530,6 @@ function BackupTab() {
         </div>
       )}
 
-      {/* Initialized — show details */}
       {status?.initialized && (
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
@@ -525,26 +543,19 @@ function BackupTab() {
             <Row label="unpushed" value={String(status.ahead)} mono />
           </div>
 
-          {/* Last commit */}
           {status.lastCommit && (
             <div style={{ marginTop: 14 }}>
               <SectionLabel>last commit</SectionLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
                 <Row label="hash" value={status.lastCommit.hash.slice(0, 8)} mono />
                 <Row label="date" value={formatDate(status.lastCommit.date)} />
-                <div style={{
-                  fontSize: '10px',
-                  color: 'var(--text-secondary)',
-                  marginTop: 2,
-                  lineHeight: '1.4',
-                }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: 2, lineHeight: '1.4' }}>
                   {status.lastCommit.message}
                 </div>
               </div>
             </div>
           )}
 
-          {/* No remote warning */}
           {!status.hasRemote && (
             <div style={{
               marginTop: 14,
@@ -559,8 +570,7 @@ function BackupTab() {
             </div>
           )}
 
-          {/* Sync button */}
-          <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'center' }}>
             <button
               onClick={handleSync}
               disabled={syncing || !hasPending}
@@ -582,7 +592,6 @@ function BackupTab() {
             <ActionButton onClick={refresh} label="refresh" />
           </div>
 
-          {/* Result */}
           {result && (
             <div style={{
               marginTop: 10,
@@ -601,28 +610,34 @@ function BackupTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Shared bits
+// Shared
 // ═══════════════════════════════════════════════════════════════════
 
-const PULSING_STATES = ['checking', 'pulling', 'restarting'];
+const PULSING_STATES: UpdateStatus[] = ['checking', 'pulling', 'restarting', 'verifying'];
 
-const STATUS_COLORS: Record<string, string> = {
+const STATUS_COLORS: Record<UpdateStatus, string> = {
   idle: 'var(--text-muted)',
   checking: 'var(--accent-primary)',
   available: 'var(--accent-orange)',
   pulling: 'var(--accent-primary)',
   restarting: 'var(--accent-primary)',
+  verifying: 'var(--accent-primary)',
+  'restart-timeout': 'var(--accent-pink)',
+  'restart-failed': 'var(--accent-pink)',
   'up-to-date': 'var(--accent-green)',
   error: 'var(--accent-pink)',
   unconfigured: 'var(--text-muted)',
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<UpdateStatus, string> = {
   idle: 'idle',
   checking: 'checking...',
   available: 'update available',
   pulling: 'pulling image...',
   restarting: 'restarting...',
+  verifying: 'verifying...',
+  'restart-timeout': 'timeout',
+  'restart-failed': 'restart failed',
   'up-to-date': 'up to date',
   error: 'error',
   unconfigured: 'not configured',
@@ -648,11 +663,7 @@ function Row({ label, value, valueColor, mono }: {
   mono?: boolean;
 }) {
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{label}</span>
       <span style={{
         color: valueColor || 'var(--text-secondary)',

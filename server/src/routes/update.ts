@@ -5,11 +5,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import http from 'http';
 import https from 'https';
+import { config } from '../config';
 
 const execAsync = promisify(exec);
 const router = Router();
 
 // ── version info baked at build time ──────────────────────────────
+
 interface VersionInfo {
   version: string;
   commit: string;
@@ -19,7 +21,7 @@ interface VersionInfo {
 
 let cachedVersion: VersionInfo | null = null;
 
-async function getVersion(): Promise<VersionInfo> {
+export async function getVersion(): Promise<VersionInfo> {
   if (cachedVersion) return cachedVersion;
 
   const versionFile = path.resolve(__dirname, '..', '..', '..', 'VERSION.json');
@@ -28,13 +30,12 @@ async function getVersion(): Promise<VersionInfo> {
     cachedVersion = JSON.parse(raw);
     return cachedVersion!;
   } catch {
-    // Dev mode — read from git directly
     try {
       const { stdout: version } = await execAsync('git describe --tags --always 2>/dev/null || echo "dev"');
       const { stdout: commit } = await execAsync('git rev-parse --short HEAD 2>/dev/null || echo "unknown"');
       const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"');
       cachedVersion = {
-        version: version.trim(),
+        version: version.trim().replace(/^v/, ''),
         commit: commit.trim(),
         buildDate: new Date().toISOString(),
         branch: branch.trim(),
@@ -68,7 +69,6 @@ function httpGet(url: string, headers: Record<string, string> = {}): Promise<str
   });
 }
 
-/** Parse semver-ish string → comparable parts */
 function parseSemver(v: string): { major: number; minor: number; patch: number; raw: string } | null {
   const match = v.replace(/^v/, '').match(/^(\d+)\.(\d+)\.(\d+)/);
   if (!match) return null;
@@ -78,10 +78,35 @@ function parseSemver(v: string): { major: number; minor: number; patch: number; 
 function isNewer(remote: string, local: string): boolean {
   const r = parseSemver(remote);
   const l = parseSemver(local);
-  if (!r || !l) return remote !== local;
+  if (!r || !l) return false; // non-semver = never newer
   if (r.major !== l.major) return r.major > l.major;
   if (r.minor !== l.minor) return r.minor > l.minor;
   return r.patch > l.patch;
+}
+
+/** Strip v prefix from git tag for docker image tag */
+function imageTagFor(gitTag: string | undefined, cfg: UpdateConfig): string {
+  if (!gitTag) return `${cfg.image}:latest`;
+  const bare = gitTag.replace(/^v/, '');
+  return `${cfg.image}:${bare}`;
+}
+
+// ── error helpers ─────────────────────────────────────────────────
+
+type ErrorCode =
+  | 'CONFIG_MISSING'
+  | 'DOCKER_SOCKET_MISSING'
+  | 'DOCKER_CLI_MISSING'
+  | 'REGISTRY_AUTH_FAILED'
+  | 'IMAGE_NOT_FOUND'
+  | 'COMPOSE_NOT_FOUND'
+  | 'COMPOSE_RESTART_FAILED'
+  | 'API_UNREACHABLE'
+  | 'PULL_FAILED'
+  | 'INVALID_IMAGE';
+
+function errorResponse(res: Response, status: number, code: ErrorCode, detail: string, extra?: Record<string, any>) {
+  return res.status(status).json({ error: code, detail, ...extra });
 }
 
 // ── update config from env ────────────────────────────────────────
@@ -89,16 +114,16 @@ function isNewer(remote: string, local: string): boolean {
 interface UpdateConfig {
   provider: 'gitlab' | 'github';
   apiUrl: string;
-  repo: string;         // e.g. "mtorres/trapperkeeper" or project ID for gitlab
-  image: string;        // docker image, e.g. "registry.gitlab.com/mtorres/trapperkeeper"
-  token: string;        // optional auth token for private repos/registries
-  composePath: string;  // path to docker-compose.yml inside container
+  repo: string;
+  image: string;
+  token: string;
+  composePath: string;
 }
 
 function getUpdateConfig(): UpdateConfig {
   return {
-    provider: (process.env.TK_UPDATE_PROVIDER as 'gitlab' | 'github') || 'gitlab',
-    apiUrl: process.env.TK_UPDATE_API_URL || (process.env.TK_UPDATE_PROVIDER === 'github' ? 'https://api.github.com' : 'http://192.168.0.181:8080'),
+    provider: (process.env.TK_UPDATE_PROVIDER as 'gitlab' | 'github') || 'github',
+    apiUrl: process.env.TK_UPDATE_API_URL || (process.env.TK_UPDATE_PROVIDER === 'gitlab' ? '' : 'https://api.github.com'),
     repo: process.env.TK_UPDATE_REPO || '',
     image: process.env.TK_UPDATE_IMAGE || '',
     token: process.env.TK_UPDATE_TOKEN || '',
@@ -121,13 +146,12 @@ async function fetchLatestRelease(cfg: UpdateConfig): Promise<RemoteRelease> {
 
   if (cfg.provider === 'gitlab') {
     if (cfg.token) headers['PRIVATE-TOKEN'] = cfg.token;
-    // GitLab API — repo can be project ID or URL-encoded path
     const encodedRepo = encodeURIComponent(cfg.repo);
     const url = `${cfg.apiUrl}/api/v4/projects/${encodedRepo}/releases`;
     const raw = await httpGet(url, headers);
     const releases = JSON.parse(raw);
     if (!releases.length) throw new Error('no releases found');
-    const latest = releases[0]; // GitLab returns newest first
+    const latest = releases[0];
     return {
       version: latest.tag_name?.replace(/^v/, '') || latest.tag_name,
       tag: latest.tag_name,
@@ -136,7 +160,6 @@ async function fetchLatestRelease(cfg: UpdateConfig): Promise<RemoteRelease> {
       changelog: latest.description || '',
     };
   } else {
-    // GitHub API
     if (cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
     headers['Accept'] = 'application/vnd.github+json';
     const url = `${cfg.apiUrl}/repos/${cfg.repo}/releases/latest`;
@@ -152,7 +175,6 @@ async function fetchLatestRelease(cfg: UpdateConfig): Promise<RemoteRelease> {
   }
 }
 
-// If no releases, fall back to tags
 async function fetchLatestTag(cfg: UpdateConfig): Promise<RemoteRelease> {
   const headers: Record<string, string> = {};
 
@@ -188,29 +210,48 @@ async function fetchLatestTag(cfg: UpdateConfig): Promise<RemoteRelease> {
   }
 }
 
-// ── check if docker socket is available ───────────────────────────
+// ── docker checks ─────────────────────────────────────────────────
 
 async function hasDockerSocket(): Promise<boolean> {
-  try {
-    await fs.access('/var/run/docker.sock');
-    return true;
-  } catch {
-    return false;
-  }
+  try { await fs.access('/var/run/docker.sock'); return true; } catch { return false; }
 }
 
 async function hasDockerCLI(): Promise<boolean> {
+  try { await execAsync('docker --version'); return true; } catch { return false; }
+}
+
+// ── rollback state ────────────────────────────────────────────────
+
+interface RollbackInfo {
+  previousImage: string;
+  previousVersion: string;
+  newImage: string;
+  timestamp: string;
+}
+
+const rollbackFile = path.join(config.dataDir, '.update-rollback.json');
+
+async function saveRollbackInfo(info: RollbackInfo): Promise<void> {
+  await fs.writeFile(rollbackFile, JSON.stringify(info, null, 2));
+}
+
+async function getRollbackInfo(): Promise<RollbackInfo | null> {
   try {
-    await execAsync('docker --version');
-    return true;
-  } catch {
-    return false;
-  }
+    const raw = await fs.readFile(rollbackFile, 'utf-8');
+    return JSON.parse(raw);
+  } catch { return null; }
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════
+
+// GET /api/update/health — unauthenticated, for restart polling
+// NOTE: mounted before auth middleware in index.ts
+router.get('/health', async (_req: Request, res: Response) => {
+  const version = await getVersion();
+  res.json({ ok: true, version: version.version, uptime: Math.floor(process.uptime()) });
+});
 
 // GET /api/update/version — current version info
 router.get('/version', async (_req: Request, res: Response) => {
@@ -228,11 +269,10 @@ router.get('/version', async (_req: Request, res: Response) => {
 // GET /api/update/check — check for new version
 router.get('/check', async (_req: Request, res: Response) => {
   const cfg = getUpdateConfig();
-  if (!cfg.repo) {
-    return res.status(400).json({
-      error: 'update not configured',
-      detail: 'set TK_UPDATE_REPO and TK_UPDATE_IMAGE environment variables',
-    });
+
+  if (!cfg.repo || !cfg.apiUrl) {
+    return errorResponse(res, 400, 'CONFIG_MISSING',
+      'set TK_UPDATE_REPO, TK_UPDATE_API_URL, and TK_UPDATE_IMAGE environment variables');
   }
 
   try {
@@ -242,7 +282,6 @@ router.get('/check', async (_req: Request, res: Response) => {
     try {
       remote = await fetchLatestRelease(cfg);
     } catch {
-      // No releases — try tags
       remote = await fetchLatestTag(cfg);
     }
 
@@ -252,88 +291,185 @@ router.get('/check', async (_req: Request, res: Response) => {
       current: current.version,
       latest: remote.version,
       latestTag: remote.tag,
+      imageTag: imageTagFor(remote.tag, cfg),
       updateAvailable,
       releaseDate: remote.date,
       changelog: remote.changelog,
       releaseUrl: remote.url,
     });
   } catch (err: any) {
-    res.status(502).json({ error: 'failed to check for updates', detail: err.message });
+    const detail = err.message || 'unknown error';
+    if (detail.includes('401') || detail.includes('403')) {
+      return errorResponse(res, 502, 'REGISTRY_AUTH_FAILED', 'authentication failed — check TK_UPDATE_TOKEN');
+    }
+    return errorResponse(res, 502, 'API_UNREACHABLE', detail);
   }
 });
 
 // POST /api/update/apply — pull new image and restart
 router.post('/apply', async (req: Request, res: Response) => {
   const cfg = getUpdateConfig();
-  const { tag } = req.body; // optional: specific tag to pull
+  const { tag } = req.body;
 
   if (!cfg.image) {
-    return res.status(400).json({
-      error: 'update not configured',
-      detail: 'set TK_UPDATE_IMAGE environment variable',
-    });
+    return errorResponse(res, 400, 'CONFIG_MISSING', 'set TK_UPDATE_IMAGE environment variable');
   }
 
-  const dockerAvailable = await hasDockerSocket() && await hasDockerCLI();
-  if (!dockerAvailable) {
-    return res.status(400).json({
-      error: 'docker not available',
-      detail: 'mount /var/run/docker.sock and ensure docker CLI is installed in the container',
-      manual: `docker pull ${cfg.image}:${tag || 'latest'} && docker compose up -d`,
-    });
+  if (!await hasDockerSocket()) {
+    return errorResponse(res, 400, 'DOCKER_SOCKET_MISSING',
+      'mount /var/run/docker.sock in your docker-compose.yml volumes',
+      { manual: `docker pull ${imageTagFor(tag, cfg)} && docker compose up -d` });
   }
 
-  const imageTag = tag ? `${cfg.image}:${tag}` : `${cfg.image}:latest`;
-  const authFlag = cfg.token ? '' : ''; // registry auth handled via docker login
+  if (!await hasDockerCLI()) {
+    return errorResponse(res, 400, 'DOCKER_CLI_MISSING',
+      'docker CLI not found in container — rebuild image',
+      { manual: `docker pull ${imageTagFor(tag, cfg)} && docker compose up -d` });
+  }
+
+  const pullTarget = imageTagFor(tag, cfg);
 
   try {
-    // Step 1: Pull new image
-    const { stdout: pullOutput } = await execAsync(`docker pull ${imageTag}`, { timeout: 120000 });
+    // Save rollback info before pulling
+    const currentVersion = await getVersion();
+    try {
+      const { stdout: currentImage } = await execAsync(
+        `docker inspect --format='{{.Config.Image}}' trapperkeeper`
+      );
+      await saveRollbackInfo({
+        previousImage: currentImage.trim(),
+        previousVersion: currentVersion.version,
+        newImage: pullTarget,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // non-fatal: rollback won't be available
+    }
 
-    // Step 2: Check if compose file exists for automated restart
+    // Pull new image
+    let pullOutput: string;
+    try {
+      const result = await execAsync(`docker pull ${pullTarget}`, { timeout: 120000 });
+      pullOutput = result.stdout;
+    } catch (err: any) {
+      const detail = err.message || '';
+      if (detail.includes('not found') || detail.includes('manifest unknown')) {
+        return errorResponse(res, 404, 'IMAGE_NOT_FOUND',
+          `image ${pullTarget} not found in registry — was it pushed?`);
+      }
+      if (detail.includes('unauthorized') || detail.includes('denied')) {
+        return errorResponse(res, 401, 'REGISTRY_AUTH_FAILED',
+          'registry authentication failed — run docker login or check TK_UPDATE_TOKEN');
+      }
+      return errorResponse(res, 500, 'PULL_FAILED', detail);
+    }
+
+    // Verify pulled image looks like a TK image
+    try {
+      const { stdout: cmd } = await execAsync(`docker inspect ${pullTarget} --format='{{json .Config.Cmd}}'`);
+      if (!cmd.includes('tsx') && !cmd.includes('index')) {
+        return errorResponse(res, 400, 'INVALID_IMAGE',
+          'pulled image does not appear to be a valid trapperkeeper image');
+      }
+    } catch {
+      // non-fatal: skip validation
+    }
+
+    // Check if compose file exists for automated restart
     let composeAvailable = false;
     try {
       await fs.access(cfg.composePath);
       composeAvailable = true;
     } catch {
-      // no compose file mounted
+      // no compose file
     }
 
-    if (composeAvailable) {
-      // Respond before restarting — the client will lose connection briefly
-      res.json({
-        success: true,
-        message: 'image pulled, restarting container...',
-        pulled: imageTag,
-        pullOutput: pullOutput.trim(),
-        restarting: true,
-      });
-
-      // Give response time to flush, then restart
-      setTimeout(async () => {
-        try {
-          const composeDir = path.dirname(cfg.composePath);
-          await execAsync(`docker compose -f ${cfg.composePath} up -d`, {
-            cwd: composeDir,
-            timeout: 60000,
-          });
-        } catch (err: any) {
-          console.error('restart failed:', err.message);
-        }
-      }, 500);
-    } else {
-      // No compose file — pulled image but can't restart automatically
-      res.json({
-        success: true,
-        message: 'image pulled — restart container manually to apply',
-        pulled: imageTag,
-        pullOutput: pullOutput.trim(),
-        restarting: false,
-        manual: 'docker compose up -d',
-      });
+    if (!composeAvailable) {
+      return errorResponse(res, 400, 'COMPOSE_NOT_FOUND',
+        `compose file not found at ${cfg.composePath}`,
+        {
+          success: true,
+          pulled: pullTarget,
+          pullOutput: pullOutput.trim(),
+          restarting: false,
+          manual: 'docker compose up -d',
+        });
     }
+
+    // Respond before restarting
+    res.json({
+      success: true,
+      message: 'image pulled, restarting container...',
+      pulled: pullTarget,
+      pullOutput: pullOutput.trim(),
+      restarting: true,
+      expectedVersion: tag ? tag.replace(/^v/, '') : undefined,
+    });
+
+    // Restart after response flushes
+    setTimeout(async () => {
+      try {
+        const composeDir = path.dirname(cfg.composePath);
+        await execAsync(`docker compose -f ${cfg.composePath} up -d`, {
+          cwd: composeDir,
+          timeout: 60000,
+        });
+      } catch (err: any) {
+        console.error('[update] restart failed:', err.message);
+      }
+    }, 500);
   } catch (err: any) {
-    res.status(500).json({ error: 'update failed', detail: err.message });
+    return errorResponse(res, 500, 'PULL_FAILED', err.message || 'update failed');
+  }
+});
+
+// GET /api/update/rollback — check if rollback is available
+router.get('/rollback', async (_req: Request, res: Response) => {
+  const info = await getRollbackInfo();
+  res.json({
+    available: !!info,
+    ...(info || {}),
+  });
+});
+
+// POST /api/update/rollback — restore previous image
+router.post('/rollback', async (_req: Request, res: Response) => {
+  const info = await getRollbackInfo();
+  if (!info?.previousImage) {
+    return errorResponse(res, 400, 'CONFIG_MISSING', 'no rollback info available');
+  }
+
+  if (!await hasDockerSocket() || !await hasDockerCLI()) {
+    return errorResponse(res, 400, 'DOCKER_SOCKET_MISSING',
+      'docker not available for rollback',
+      { manual: `docker pull ${info.previousImage} && docker compose up -d` });
+  }
+
+  const cfg = getUpdateConfig();
+
+  try {
+    // Tag the previous image as latest so compose picks it up
+    await execAsync(`docker tag ${info.previousImage} ${cfg.image}:latest`, { timeout: 30000 });
+
+    res.json({
+      success: true,
+      message: 'rolling back, restarting container...',
+      restarting: true,
+      rollingBackTo: info.previousVersion,
+    });
+
+    setTimeout(async () => {
+      try {
+        await execAsync(`docker compose -f ${cfg.composePath} up -d`, {
+          cwd: path.dirname(cfg.composePath),
+          timeout: 60000,
+        });
+      } catch (err: any) {
+        console.error('[update] rollback restart failed:', err.message);
+      }
+    }, 500);
+  } catch (err: any) {
+    return errorResponse(res, 500, 'COMPOSE_RESTART_FAILED', err.message);
   }
 });
 

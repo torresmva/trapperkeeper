@@ -27,7 +27,7 @@ ARG TK_COMMIT=unknown
 ARG TK_BRANCH=main
 
 # Install tsx for running TypeScript directly + openssl for self-signed certs + docker CLI for self-update
-RUN apk add --no-cache openssl docker-cli && npm install -g tsx
+RUN apk add --no-cache openssl docker-cli curl && npm install -g tsx
 
 COPY --from=server-build /app/node_modules ./node_modules
 COPY --from=server-build /app/server ./server
@@ -51,5 +51,8 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -sf http://localhost:3001/api/update/health || exit 1
 
 CMD ["tsx", "server/src/index.ts"]

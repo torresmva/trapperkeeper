@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface VersionInfo {
   version: string;
@@ -14,6 +14,7 @@ interface UpdateCheck {
   current: string;
   latest: string;
   latestTag: string;
+  imageTag: string;
   updateAvailable: boolean;
   releaseDate: string;
   changelog: string;
@@ -31,17 +32,32 @@ interface UpdateConfig {
   dockerCLI: boolean;
 }
 
-type UpdateStatus = 'idle' | 'checking' | 'available' | 'pulling' | 'restarting' | 'up-to-date' | 'error' | 'unconfigured';
+interface RollbackInfo {
+  available: boolean;
+  previousImage?: string;
+  previousVersion?: string;
+  newImage?: string;
+  timestamp?: string;
+}
+
+export type UpdateStatus =
+  | 'idle' | 'checking' | 'available' | 'pulling'
+  | 'restarting' | 'verifying' | 'restart-timeout' | 'restart-failed'
+  | 'up-to-date' | 'error' | 'unconfigured';
 
 export function useUpdate() {
   const [version, setVersion] = useState<VersionInfo | null>(null);
   const [check, setCheck] = useState<UpdateCheck | null>(null);
   const [config, setConfig] = useState<UpdateConfig | null>(null);
+  const [rollback, setRollback] = useState<RollbackInfo | null>(null);
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [pullMessage, setPullMessage] = useState<string | null>(null);
+  const [restartElapsed, setRestartElapsed] = useState(0);
+  const pollRef = useRef<number | null>(null);
+  const timerRef = useRef<number | null>(null);
 
-  // Fetch current version on mount
   useEffect(() => {
     fetch('/api/update/version')
       .then(r => r.json())
@@ -52,14 +68,23 @@ export function useUpdate() {
       .catch(() => {});
   }, []);
 
+  const clearPolling = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }, []);
+
+  useEffect(() => clearPolling, [clearPolling]);
+
   const checkForUpdate = useCallback(async () => {
     setStatus('checking');
     setError(null);
+    setErrorCode(null);
     try {
       const res = await fetch('/api/update/check');
       const data = await res.json();
       if (!res.ok) {
         setError(data.detail || data.error);
+        setErrorCode(data.error || null);
         setStatus('error');
         return;
       }
@@ -74,7 +99,11 @@ export function useUpdate() {
   const applyUpdate = useCallback(async (tag?: string) => {
     setStatus('pulling');
     setError(null);
+    setErrorCode(null);
     setPullMessage(null);
+
+    const expectedVersion = tag?.replace(/^v/, '') || undefined;
+
     try {
       const res = await fetch('/api/update/apply', {
         method: 'POST',
@@ -84,55 +113,130 @@ export function useUpdate() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.detail || data.error);
+        setErrorCode(data.error || null);
         if (data.manual) setPullMessage(data.manual);
         setStatus('error');
         return;
       }
+
       if (data.restarting) {
         setStatus('restarting');
-        // Poll until server comes back
-        const poll = setInterval(async () => {
+        setRestartElapsed(0);
+
+        // Elapsed timer
+        timerRef.current = window.setInterval(() => {
+          setRestartElapsed(prev => prev + 1);
+        }, 1000);
+
+        // Health polling
+        pollRef.current = window.setInterval(async () => {
           try {
-            const r = await fetch('/api/update/version');
+            const r = await fetch('/api/update/health');
             if (r.ok) {
-              clearInterval(poll);
-              window.location.reload();
+              const health = await r.json();
+              if (health.ok) {
+                // Check if it's actually the new version
+                if (expectedVersion && health.version === expectedVersion) {
+                  clearPolling();
+                  window.location.reload();
+                } else if (expectedVersion && health.version !== expectedVersion && health.uptime > 5) {
+                  // Server is back but running old version
+                  clearPolling();
+                  setStatus('restart-failed');
+                  setError(`server restarted but still running v${health.version}`);
+                  fetchRollback();
+                } else if (!expectedVersion) {
+                  // No expected version — just reload when server responds
+                  clearPolling();
+                  window.location.reload();
+                }
+                // else: server just booted (uptime < 5s), wait for it to settle
+              }
             }
           } catch {
-            // still restarting
+            // server still down
           }
         }, 3000);
-        // Give up after 2 minutes
-        setTimeout(() => clearInterval(poll), 120000);
+
+        // Timeout after 2 minutes
+        setTimeout(() => {
+          if (pollRef.current) {
+            clearPolling();
+            setStatus('restart-timeout');
+            setError('server did not respond after 2 minutes');
+            setPullMessage('docker compose up -d');
+          }
+        }, 120000);
       } else {
         setPullMessage(data.manual || data.message);
-        setStatus('available'); // still needs manual restart
+        setStatus('available');
       }
     } catch (err: any) {
       setError(err.message);
       setStatus('error');
     }
-  }, []);
+  }, [clearPolling]);
 
   const fetchConfig = useCallback(async () => {
     try {
       const res = await fetch('/api/update/config');
-      const data = await res.json();
-      setConfig(data);
-    } catch {
-      // ignore
-    }
+      setConfig(await res.json());
+    } catch {}
   }, []);
 
+  const fetchRollback = useCallback(async () => {
+    try {
+      const res = await fetch('/api/update/rollback');
+      setRollback(await res.json());
+    } catch {}
+  }, []);
+
+  const applyRollback = useCallback(async () => {
+    setStatus('restarting');
+    setError(null);
+    setRestartElapsed(0);
+    try {
+      const res = await fetch('/api/update/rollback', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || data.error);
+        setErrorCode(data.error || null);
+        if (data.manual) setPullMessage(data.manual);
+        setStatus('error');
+        return;
+      }
+
+      // Poll for restart
+      timerRef.current = window.setInterval(() => {
+        setRestartElapsed(prev => prev + 1);
+      }, 1000);
+
+      pollRef.current = window.setInterval(async () => {
+        try {
+          const r = await fetch('/api/update/health');
+          if (r.ok) {
+            clearPolling();
+            window.location.reload();
+          }
+        } catch {}
+      }, 3000);
+
+      setTimeout(() => {
+        if (pollRef.current) {
+          clearPolling();
+          setStatus('restart-timeout');
+          setError('server did not respond after rollback');
+        }
+      }, 120000);
+    } catch (err: any) {
+      setError(err.message);
+      setStatus('error');
+    }
+  }, [clearPolling]);
+
   return {
-    version,
-    check,
-    config,
-    status,
-    error,
-    pullMessage,
-    checkForUpdate,
-    applyUpdate,
-    fetchConfig,
+    version, check, config, rollback,
+    status, error, errorCode, pullMessage, restartElapsed,
+    checkForUpdate, applyUpdate, fetchConfig, fetchRollback, applyRollback,
   };
 }
