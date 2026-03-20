@@ -1,0 +1,27 @@
+services:
+  trapperkeeper:
+    image: ghcr.io/torresmva/trapperkeeper:latest
+    container_name: trapperkeeper
+    ports:
+      - "3001:3001"
+      - "3443:3443"
+    volumes:
+      - trapperkeeper-data:/app/data
+    restart: unless-stopped
+    environment:
+      - TK_PASSWORD=rocco
+      - TK_WARDEN_URL=http://tk-warden:3002
+
+  warden:
+    image: ghcr.io/torresmva/trapperkeeper-warden:latest
+    container_name: tk-warden
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    environment:
+      - TK_CONTAINER=trapperkeeper
+      - TK_HEALTH_URL=http://trapperkeeper:3001/api/update/health
+
+volumes:
+  trapperkeeper-data:
+    driver: local
