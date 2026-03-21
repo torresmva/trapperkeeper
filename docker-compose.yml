@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        TK_VERSION: "1.7.0"
+        TK_VERSION: "1.8.0"
         TK_COMMIT: "${TK_COMMIT:-dev}"
         TK_BRANCH: "${TK_BRANCH:-main}"
     image: ghcr.io/torresmva/trapperkeeper:latest
