@@ -66,6 +66,27 @@ async function ensureDataDirs() {
   } catch {
     // default-templates dir may not exist in dev mode
   }
+
+  // Seed default reference notes (RFC list, routing protocol cheat sheets)
+  const referencesDir = path.join(config.notesDir, 'references');
+  const defaultRefsDir = path.join(__dirname, '..', '..', 'default-references');
+  try {
+    await fs.mkdir(referencesDir, { recursive: true });
+    const defaults = await fs.readdir(defaultRefsDir);
+    for (const file of defaults) {
+      if (!file.endsWith('.md')) continue;
+      const target = path.join(referencesDir, file);
+      try {
+        await fs.access(target);
+        // File already exists, skip
+      } catch {
+        await fs.copyFile(path.join(defaultRefsDir, file), target);
+      }
+    }
+    console.log(`Seeded reference notes to ${referencesDir}`);
+  } catch {
+    // default-references dir may not exist
+  }
 }
 
 async function main() {

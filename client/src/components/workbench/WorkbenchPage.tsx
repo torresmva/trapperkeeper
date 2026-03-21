@@ -9,23 +9,77 @@ import { CronBuilder } from './CronBuilder';
 import { PortRef } from './PortRef';
 import { RfcRef } from './RfcRef';
 import { DiagramEditor } from './DiagramEditor';
+import { ProtocolRef } from './ProtocolRef';
 
-const TOOLS = [
-  { id: 'cidr', label: 'cidr' },
-  { id: 'subnet', label: 'subnet calc' },
+// Top-level tools — networking is a group with sub-tabs
+const TOP_TOOLS = [
+  { id: 'networking', label: 'networking' },
   { id: 'size', label: 'data size' },
   { id: 'rate', label: 'data rate' },
   { id: 'epoch', label: 'epoch' },
   { id: 'cron', label: 'cron' },
-  { id: 'ports', label: 'ports' },
-  { id: 'rfcs', label: 'rfcs' },
   { id: 'diagrams', label: 'diagrams' },
 ] as const;
 
-type ToolId = typeof TOOLS[number]['id'];
+const NET_TABS = [
+  { id: 'cidr', label: 'cidr' },
+  { id: 'subnet', label: 'subnet calc' },
+  { id: 'ports', label: 'ports' },
+  { id: 'rfcs', label: 'rfcs' },
+  { id: 'protocols', label: 'routing protocols' },
+] as const;
+
+type TopId = typeof TOP_TOOLS[number]['id'];
+type NetId = typeof NET_TABS[number]['id'];
+
+const mono: React.CSSProperties = {
+  fontFamily: "'JetBrains Mono', monospace",
+};
+
+function TabBar({ items, active, onSelect, accentColor }: {
+  items: readonly { id: string; label: string }[];
+  active: string;
+  onSelect: (id: string) => void;
+  accentColor?: string;
+}) {
+  const accent = accentColor || 'var(--accent-primary)';
+  return (
+    <div style={{
+      display: 'flex',
+      gap: 0,
+      borderBottom: '1px solid var(--border)',
+      overflowX: 'auto',
+      WebkitOverflowScrolling: 'touch',
+    }}>
+      {items.map(item => (
+        <button
+          key={item.id}
+          onClick={() => onSelect(item.id)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: active === item.id ? `2px solid ${accent}` : '2px solid transparent',
+            color: active === item.id ? accent : 'var(--text-secondary)',
+            padding: '8px 14px',
+            fontSize: '12px',
+            ...mono,
+            cursor: 'pointer',
+            transition: 'color 0.15s, border-color 0.15s',
+            letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function WorkbenchPage() {
-  const [active, setActive] = useState<ToolId>('cidr');
+  const [active, setActive] = useState<TopId>('networking');
+  const [netTab, setNetTab] = useState<NetId>('cidr');
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -53,50 +107,39 @@ export function WorkbenchPage() {
           tools for the job
         </div>
 
-        {/* Tool tabs */}
-        <div style={{
-          display: 'flex',
-          gap: 0,
-          marginTop: 16,
-          borderBottom: '1px solid var(--border)',
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-        }}>
-          {TOOLS.map(tool => (
-            <button
-              key={tool.id}
-              onClick={() => setActive(tool.id)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                borderBottom: active === tool.id ? '2px solid var(--accent-primary)' : '2px solid transparent',
-                color: active === tool.id ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                padding: '8px 14px',
-                fontSize: '12px',
-                fontFamily: "'JetBrains Mono', monospace",
-                cursor: 'pointer',
-                transition: 'color 0.15s, border-color 0.15s',
-                letterSpacing: '0.02em',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              {tool.label}
-            </button>
-          ))}
+        {/* Top-level tabs */}
+        <div style={{ marginTop: 16 }}>
+          <TabBar
+            items={TOP_TOOLS}
+            active={active}
+            onSelect={id => setActive(id as TopId)}
+          />
         </div>
+
+        {/* Networking sub-tabs */}
+        {active === 'networking' && (
+          <div style={{ marginTop: 0, paddingLeft: 8 }}>
+            <TabBar
+              items={NET_TABS}
+              active={netTab}
+              onSelect={id => setNetTab(id as NetId)}
+              accentColor="var(--accent-tertiary)"
+            />
+          </div>
+        )}
       </div>
 
       {/* Tool content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
-        {active === 'cidr' && <CidrChart />}
-        {active === 'subnet' && <SubnetCalc />}
+        {active === 'networking' && netTab === 'cidr' && <CidrChart />}
+        {active === 'networking' && netTab === 'subnet' && <SubnetCalc />}
+        {active === 'networking' && netTab === 'ports' && <PortRef />}
+        {active === 'networking' && netTab === 'rfcs' && <RfcRef />}
+        {active === 'networking' && netTab === 'protocols' && <ProtocolRef />}
         {active === 'size' && <SizeCalc />}
         {active === 'rate' && <RateCalc />}
         {active === 'epoch' && <EpochCalc />}
         {active === 'cron' && <CronBuilder />}
-        {active === 'ports' && <PortRef />}
-        {active === 'rfcs' && <RfcRef />}
         {active === 'diagrams' && <DiagramEditor />}
       </div>
     </div>

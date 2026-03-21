@@ -44,6 +44,9 @@ VOLUME ["/app/data"]
 # Default templates — copied to data/templates/ on first run if empty
 COPY data/templates/ /app/default-templates/
 
+# Default reference notes — seeded to data/notes/references/ on first run
+COPY default-references/ /app/default-references/
+
 ENV NODE_ENV=production
 ENV PORT=3001
 
