@@ -6,6 +6,9 @@ personal work journal + impact log. markdown files, no database.
 
 ## deploy
 
+Strongly recommend setting up a persistent data dir, and mounting. See details in docker-compose.yml
+
+Quick deploy:
 ```bash
 mkdir -p /opt/tk-data
 curl -sO https://raw.githubusercontent.com/torresmva/trapperkeeper/main/docker-compose.yml
