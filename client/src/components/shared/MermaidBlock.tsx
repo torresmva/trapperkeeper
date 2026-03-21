@@ -8,6 +8,8 @@ function initMermaid() {
   const theme = document.documentElement.getAttribute('data-theme') || 'dark';
   mermaid.initialize({
     startOnLoad: false,
+    suppressErrorRendering: true,
+    logLevel: 5,
     theme: theme === 'dark' ? 'dark' : 'default',
     themeVariables: theme === 'dark' ? {
       primaryColor: '#22d3ee',
@@ -29,6 +31,20 @@ function initMermaid() {
   initialized = true;
 }
 
+function cleanError(msg: string): string {
+  const lines = msg.split('\n').filter(l => l.trim());
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (lower.includes('parse error') || lower.includes('syntax error') || lower.includes('expecting')) {
+      return line.trim().slice(0, 150);
+    }
+    if (lower.includes('error') && !lower.includes('stack') && !lower.includes('at ')) {
+      return line.trim().slice(0, 150);
+    }
+  }
+  return (lines[0] || 'diagram syntax error').slice(0, 150);
+}
+
 interface Props {
   chart: string;
 }
@@ -48,22 +64,27 @@ export function MermaidBlock({ chart }: Props) {
         setError('');
       })
       .catch((err) => {
-        setError(err.message || 'Failed to render diagram');
+        setError(cleanError(err.message || 'diagram syntax error'));
+        // Clean up orphaned elements
+        const el = document.getElementById(id);
+        if (el) el.remove();
       });
   }, [chart]);
 
   if (error) {
     return (
-      <pre style={{
+      <div style={{
         borderLeft: '2px solid var(--danger)',
-        padding: '12px 16px',
-        fontSize: '11px',
+        padding: '8px 12px',
+        fontSize: '10px',
         color: 'var(--danger)',
         background: 'var(--bg-surface)',
         margin: '12px 0',
+        fontFamily: "'JetBrains Mono', monospace",
+        lineHeight: 1.5,
       }}>
-        mermaid error: {error}
-      </pre>
+        diagram error: {error}
+      </div>
     );
   }
 

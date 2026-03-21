@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import mermaid from 'mermaid';
 
-// Initialize mermaid once
+// Initialize mermaid once — suppress error logging
 mermaid.initialize({
   startOnLoad: false,
   theme: 'dark',
+  suppressErrorRendering: true,
+  logLevel: 5, // fatal only
   themeVariables: {
     primaryColor: '#22d3ee',
     primaryTextColor: '#e5e5e5',
@@ -58,6 +60,114 @@ const TEMPLATES: { label: string; code: string }[] = [
   },
 ];
 
+// ── Syntax reference ──
+
+const SYNTAX_REF: { type: string; lines: string[] }[] = [
+  {
+    type: 'flowchart',
+    lines: [
+      'graph TD          top-down (or LR, RL, BT)',
+      'A[Box] --> B      arrow with box node',
+      'A(Rounded) --> B  rounded node',
+      'A{Diamond} --> B  decision node',
+      'A((Circle))       circle node',
+      'A -->|label| B    labeled arrow',
+      'A -.-> B          dotted arrow',
+      'A ==> B           thick arrow',
+      'subgraph Name     group nodes',
+      '  C --> D',
+      'end',
+    ],
+  },
+  {
+    type: 'sequence',
+    lines: [
+      'sequenceDiagram',
+      'participant A as Alice',
+      'A->>B: Solid arrow',
+      'A-->>B: Dashed arrow',
+      'A-xB: Cross arrow',
+      'Note over A,B: Note text',
+      'loop Every minute',
+      '  A->>B: Ping',
+      'end',
+      'alt Success',
+      '  B-->>A: OK',
+      'else Failure',
+      '  B-->>A: Error',
+      'end',
+    ],
+  },
+  {
+    type: 'class',
+    lines: [
+      'classDiagram',
+      'class ClassName {',
+      '  +String publicField',
+      '  -int privateField',
+      '  +method() ReturnType',
+      '}',
+      'ClassA --|> ClassB    inheritance',
+      'ClassA --* ClassB     composition',
+      'ClassA --o ClassB     aggregation',
+      'ClassA --> ClassB     association',
+      'ClassA ..> ClassB     dependency',
+    ],
+  },
+  {
+    type: 'state',
+    lines: [
+      'stateDiagram-v2',
+      '[*] --> State1       start',
+      'State1 --> State2 : event',
+      'State2 --> [*]       end',
+      'state State1 {       nested',
+      '  [*] --> sub1',
+      '  sub1 --> sub2',
+      '}',
+      'state fork <<fork>>  fork/join',
+    ],
+  },
+  {
+    type: 'er',
+    lines: [
+      'erDiagram',
+      'A ||--o{ B : "has many"',
+      '||--||  one to one',
+      '||--o{  one to many',
+      '}|--|{  many to many',
+      'A {',
+      '  string name PK',
+      '  int age',
+      '}',
+    ],
+  },
+  {
+    type: 'gantt',
+    lines: [
+      'gantt',
+      'title Project Name',
+      'dateFormat YYYY-MM-DD',
+      'section Section Name',
+      'Task Name :id, 2024-01-01, 30d',
+      'Task 2 :after id, 15d',
+      'Milestone :milestone, m1, 2024-02-01, 0d',
+      'done     — completed task',
+      'active   — in-progress task',
+      'crit     — critical path',
+    ],
+  },
+  {
+    type: 'pie',
+    lines: [
+      'pie title Chart Title',
+      '"Label A" : 40',
+      '"Label B" : 30',
+      '"Label C" : 30',
+    ],
+  },
+];
+
 function loadSavedDiagrams(): SavedDiagram[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -71,6 +181,24 @@ function saveDiagrams(diagrams: SavedDiagram[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(diagrams));
 }
 
+/** Extract a clean, short error from mermaid's verbose output */
+function cleanError(msg: string): string {
+  // Mermaid errors are often multi-line with stack traces
+  const lines = msg.split('\n').filter(l => l.trim());
+  // Look for the most useful line
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (lower.includes('parse error') || lower.includes('syntax error') || lower.includes('expecting')) {
+      return line.trim().slice(0, 200);
+    }
+    if (lower.includes('error') && !lower.includes('stack') && !lower.includes('at ')) {
+      return line.trim().slice(0, 200);
+    }
+  }
+  // Fall back to first line, capped
+  return (lines[0] || 'invalid syntax').slice(0, 200);
+}
+
 let renderCounter = 0;
 
 export function DiagramEditor() {
@@ -80,6 +208,7 @@ export function DiagramEditor() {
   const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>(loadSavedDiagrams);
   const [saveName, setSaveName] = useState('');
   const [showSaved, setShowSaved] = useState(false);
+  const [showRef, setShowRef] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState('');
   const renderTimeout = useRef<ReturnType<typeof setTimeout>>();
   const previewRef = useRef<HTMLDivElement>(null);
@@ -97,11 +226,15 @@ export function DiagramEditor() {
       setSvgOutput(svg);
       setError('');
     } catch (e: any) {
-      setError(e?.message || 'invalid diagram syntax');
+      setError(cleanError(e?.message || 'invalid diagram syntax'));
       setSvgOutput('');
       // Clean up any orphaned render elements
-      const el = document.getElementById(`d${renderCounter}`);
-      if (el) el.remove();
+      document.querySelectorAll('[id^="diagram-preview-"]').forEach(el => {
+        if (!el.closest('[data-diagram-container]')) el.remove();
+      });
+      document.querySelectorAll('[id^="d"]').forEach(el => {
+        if (el.id.match(/^d\d+$/) && el.classList.contains('mermaid')) el.remove();
+      });
     }
   }, []);
 
@@ -112,6 +245,25 @@ export function DiagramEditor() {
     }, 400);
     return () => clearTimeout(renderTimeout.current);
   }, [code, renderDiagram]);
+
+  // Detect current diagram type for context-aware reference
+  const currentType = code.trim().split(/[\s\n]/)[0]?.toLowerCase() || '';
+  const typeMap: Record<string, string> = {
+    'graph': 'flowchart', 'flowchart': 'flowchart',
+    'sequencediagram': 'sequence',
+    'classdiagram': 'class',
+    'statediagram-v2': 'state', 'statediagram': 'state',
+    'erdiagram': 'er',
+    'gantt': 'gantt',
+    'pie': 'pie',
+  };
+  const detectedType = typeMap[currentType] || '';
+  // Show detected type first, then the rest
+  const sortedRef = [...SYNTAX_REF].sort((a, b) => {
+    if (a.type === detectedType) return -1;
+    if (b.type === detectedType) return 1;
+    return 0;
+  });
 
   const flash = (msg: string) => {
     setCopyFeedback(msg);
@@ -222,7 +374,14 @@ export function DiagramEditor() {
         <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }} />
 
         <button
-          onClick={() => setShowSaved(!showSaved)}
+          onClick={() => { setShowRef(!showRef); setShowSaved(false); }}
+          style={showRef ? btnActiveStyle : btnStyle}
+        >
+          syntax ref
+        </button>
+
+        <button
+          onClick={() => { setShowSaved(!showSaved); setShowRef(false); }}
           style={showSaved ? btnActiveStyle : btnStyle}
         >
           saved ({savedDiagrams.length})
@@ -264,6 +423,49 @@ export function DiagramEditor() {
           </span>
         )}
       </div>
+
+      {/* Syntax reference panel */}
+      {showRef && (
+        <div style={{
+          border: '1px solid var(--border)',
+          background: 'var(--bg-primary)',
+          marginBottom: 12,
+          maxHeight: 240,
+          overflowY: 'auto',
+          padding: '10px 14px',
+        }}>
+          {sortedRef.map(ref => (
+            <div key={ref.type} style={{ marginBottom: 14 }}>
+              <div style={{
+                fontSize: '10px',
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 600,
+                color: ref.type === detectedType ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: 4,
+                borderLeft: ref.type === detectedType ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                paddingLeft: 8,
+              }}>
+                {ref.type}
+              </div>
+              <pre style={{
+                fontSize: '10px',
+                fontFamily: "'JetBrains Mono', monospace",
+                color: 'var(--text-muted)',
+                lineHeight: 1.6,
+                margin: 0,
+                paddingLeft: 12,
+                background: 'none',
+                border: 'none',
+                whiteSpace: 'pre-wrap',
+              }}>
+                {ref.lines.join('\n')}
+              </pre>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Saved diagrams dropdown */}
       {showSaved && savedDiagrams.length > 0 && (
@@ -384,14 +586,15 @@ export function DiagramEditor() {
             padding: '6px 10px',
             borderBottom: '1px solid var(--border)',
             fontSize: '10px',
-            color: 'var(--text-muted)',
+            color: error ? 'var(--danger)' : 'var(--text-muted)',
             fontFamily: "'JetBrains Mono', monospace",
             letterSpacing: '0.02em',
           }}>
-            preview
+            {error ? 'error' : 'preview'}
           </div>
           <div
             ref={previewRef}
+            data-diagram-container
             style={{
               flex: 1,
               overflow: 'auto',
@@ -404,14 +607,14 @@ export function DiagramEditor() {
           >
             {error ? (
               <div style={{
-                color: 'var(--accent-pink)',
+                color: 'var(--danger)',
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: '11px',
-                lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                lineHeight: 1.6,
                 padding: '8px',
-                borderLeft: '2px solid var(--accent-pink)',
+                borderLeft: '2px solid var(--danger)',
+                maxHeight: '100%',
+                overflow: 'auto',
               }}>
                 {error}
               </div>
