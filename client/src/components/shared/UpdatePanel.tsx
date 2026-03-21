@@ -6,48 +6,142 @@ import { api } from '../../api/client';
 // Sidebar badge — opens the sys modal
 // ═══════════════════════════════════════════════════════════════════
 
+// 8-bit character that pops out to nudge you to update
+function PixelNudge({ onClick }: { onClick: () => void }) {
+  // Little 8-bit adventurer (Link-style)
+  const grid = [
+    '..##..',
+    '.#..#.',
+    '.####.',
+    '..##..',
+    '.####.',
+    '#.##.#',
+    '..##..',
+    '.#..#.',
+  ];
+  const px = 2;
+  const size = grid[0].length * px;
+  const height = grid.length * px;
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        position: 'absolute',
+        bottom: '100%',
+        left: 16,
+        marginBottom: 4,
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 6,
+        cursor: 'pointer',
+        animation: 'tk-nudge-enter 0.4s ease forwards',
+      }}
+    >
+      <svg width={size} height={height} viewBox={`0 0 ${size} ${height}`} style={{ imageRendering: 'pixelated' }}>
+        {grid.map((row, y) =>
+          row.split('').map((cell, x) =>
+            cell === '#' ? (
+              <rect key={`${x}-${y}`} x={x * px} y={y * px} width={px} height={px}
+                fill={y < 3 ? '#4ade80' : y < 5 ? '#22d3ee' : '#fb923c'} />
+            ) : null
+          )
+        )}
+      </svg>
+      <span style={{
+        fontSize: '8px',
+        color: 'var(--accent-tertiary)',
+        fontFamily: "'JetBrains Mono', monospace",
+        whiteSpace: 'nowrap',
+        letterSpacing: '0.02em',
+        background: 'var(--bg-secondary)',
+        border: '1px solid var(--border)',
+        padding: '2px 6px',
+        marginBottom: 2,
+      }}>
+        update available!
+      </span>
+    </div>
+  );
+}
+
 export function UpdateBadge() {
   const { version, status, checkForUpdate } = useUpdate();
   const [modalOpen, setModalOpen] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
   useEffect(() => {
     if (version?.updateConfigured) checkForUpdate();
   }, [version?.updateConfigured]);
 
+  // Show the nudge character periodically when update is available
+  useEffect(() => {
+    if (status !== 'available' || nudgeDismissed) {
+      setShowNudge(false);
+      return;
+    }
+    // Show after 5s, then every 2 minutes
+    const initial = setTimeout(() => setShowNudge(true), 5000);
+    const interval = setInterval(() => {
+      setShowNudge(true);
+      // Auto-hide after 8s
+      setTimeout(() => setShowNudge(false), 8000);
+    }, 120000);
+    return () => { clearTimeout(initial); clearInterval(interval); };
+  }, [status, nudgeDismissed]);
+
   const dotColor = STATUS_COLORS[status] || 'var(--text-muted)';
+  const isUpdateAvailable = status === 'available';
+  const isError = status === 'error' || status === 'restart-failed' || status === 'restart-timeout';
 
   return (
     <>
-      <button
-        onClick={() => setModalOpen(true)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
-          padding: '8px 16px',
-          background: 'transparent',
-          border: 'none',
-          borderTop: '1px solid var(--border)',
-          cursor: 'pointer',
-          color: 'var(--text-secondary)',
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '10px',
-        }}
-      >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            width: 6, height: 6,
-            background: dotColor,
-            display: 'inline-block',
-            animation: PULSING_STATES.includes(status) ? 'tk-pulse 1s infinite' : 'none',
+      <div style={{ position: 'relative' }}>
+        {showNudge && !modalOpen && (
+          <PixelNudge onClick={() => {
+            setShowNudge(false);
+            setNudgeDismissed(true);
+            setModalOpen(true);
           }} />
-          <span style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>sys</span>
-        </span>
-        <span style={{ color: dotColor, fontSize: '9px' }}>
-          {version?.version || '...'}
-        </span>
-      </button>
+        )}
+        <button
+          onClick={() => {
+            setModalOpen(true);
+            setShowNudge(false);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            padding: '8px 16px',
+            background: 'transparent',
+            border: 'none',
+            borderTop: '1px solid var(--border)',
+            cursor: 'pointer',
+            color: isUpdateAvailable ? 'var(--accent-tertiary)' : 'var(--text-secondary)',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '10px',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 6, height: 6,
+              background: dotColor,
+              display: 'inline-block',
+              animation: PULSING_STATES.includes(status) ? 'tk-pulse 1s infinite'
+                : isUpdateAvailable ? 'tk-pulse-slow 2s infinite' : 'none',
+            }} />
+            <span style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {isUpdateAvailable ? 'update' : 'sys'}
+            </span>
+          </span>
+          <span style={{ color: dotColor, fontSize: '9px' }}>
+            {version?.version || '...'}
+          </span>
+        </button>
+      </div>
 
       {modalOpen && <SysModal onClose={() => setModalOpen(false)} />}
 
@@ -55,6 +149,14 @@ export function UpdateBadge() {
         @keyframes tk-pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
+        }
+        @keyframes tk-pulse-slow {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        @keyframes tk-nudge-enter {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
     </>
@@ -720,14 +822,14 @@ const PULSING_STATES: UpdateStatus[] = ['checking', 'pulling', 'restarting', 've
 const STATUS_COLORS: Record<UpdateStatus, string> = {
   idle: 'var(--text-muted)',
   checking: 'var(--accent-primary)',
-  available: 'var(--accent-orange)',
+  available: 'var(--accent-tertiary)',
   pulling: 'var(--accent-primary)',
   restarting: 'var(--accent-primary)',
   verifying: 'var(--accent-primary)',
-  'restart-timeout': 'var(--accent-pink)',
-  'restart-failed': 'var(--accent-pink)',
+  'restart-timeout': 'var(--danger)',
+  'restart-failed': 'var(--danger)',
   'up-to-date': 'var(--accent-green)',
-  error: 'var(--accent-pink)',
+  error: 'var(--danger)',
   unconfigured: 'var(--text-muted)',
 };
 
