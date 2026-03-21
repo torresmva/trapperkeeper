@@ -78,6 +78,10 @@ export function EntryList() {
   const [showArchived, setShowArchived] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>(() =>
+    (localStorage.getItem('tk-entry-density') as any) || 'comfortable'
+  );
+  const [inlineSearch, setInlineSearch] = useState('');
 
   // Timeline state
   const [collections, setCollections] = useState<CollectionInfo[]>([]);
@@ -171,6 +175,23 @@ export function EntryList() {
     if (!months[key]) months[key] = [];
     months[key].push(entry);
   }
+
+  const toggleDensity = () => {
+    const next = density === 'comfortable' ? 'compact' : 'comfortable';
+    setDensity(next);
+    localStorage.setItem('tk-entry-density', next);
+  };
+
+  // Inline search filter
+  const displayEntries = useMemo(() => {
+    if (!inlineSearch.trim()) return entries;
+    const q = inlineSearch.toLowerCase();
+    return entries.filter(e =>
+      e.meta.title.toLowerCase().includes(q) ||
+      e.meta.tags.some(t => t.toLowerCase().includes(q)) ||
+      e.meta.type.toLowerCase().includes(q)
+    );
+  }, [entries, inlineSearch]);
 
   const navigateToEntry = (entry: Entry | { id: string; category: string }) => {
     const cat = 'meta' in entry ? entry.meta.category : (entry as any).category;
@@ -323,17 +344,57 @@ export function EntryList() {
           {/* Pinned entries strip */}
           <PinnedStrip entries={entries} onSelect={navigateToEntry} />
 
-          {/* Archive toggle */}
+          {/* Controls row: search, count, density, archive */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            gap: 8,
             padding: '12px 0',
             marginBottom: 8,
           }}>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              {loading ? '' : `${entries.length} ${filter === 'all' ? 'entries' : filter}`}
+            {/* Inline search */}
+            <input
+              type="text"
+              value={inlineSearch}
+              onChange={e => setInlineSearch(e.target.value)}
+              placeholder="filter..."
+              style={{
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontSize: '10px',
+                fontFamily: "'JetBrains Mono', monospace",
+                padding: '4px 0',
+                width: 100,
+                outline: 'none',
+              }}
+            />
+
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.06em', flex: 1 }}>
+              {loading ? '' : inlineSearch
+                ? `${displayEntries.length} / ${entries.length}`
+                : `${entries.length} ${filter === 'all' ? 'entries' : filter}`
+              }
             </span>
+
+            {/* Density toggle */}
+            <button
+              onClick={toggleDensity}
+              title={density === 'comfortable' ? 'compact view' : 'comfortable view'}
+              style={{
+                fontSize: '10px',
+                padding: '3px 8px',
+                color: density === 'compact' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                background: 'transparent',
+                textTransform: 'lowercase',
+                letterSpacing: '0.02em',
+                border: 'none',
+              }}
+            >
+              {density === 'compact' ? '≡ compact' : '☰ full'}
+            </button>
+
             <button
               onClick={() => setShowArchived(!showArchived)}
               style={{
@@ -353,10 +414,16 @@ export function EntryList() {
           {/* Entry list */}
           {loading ? (
             <LoadingState />
-          ) : entries.length === 0 ? (
-            <EmptyState quote={emptyQuote} onNew={() => setShowNew(true)} />
+          ) : displayEntries.length === 0 ? (
+            inlineSearch ? (
+              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px' }}>
+                no entries matching "{inlineSearch}"
+              </div>
+            ) : (
+              <EmptyState quote={emptyQuote} onNew={() => setShowNew(true)} />
+            )
           ) : (
-            <GroupedEntryList entries={entries} onSelect={navigateToEntry} />
+            <GroupedEntryList entries={displayEntries} onSelect={navigateToEntry} compact={density === 'compact'} />
           )}
         </>
       )}
@@ -609,7 +676,7 @@ export function EntryList() {
   );
 }
 
-function GroupedEntryList({ entries, onSelect }: { entries: Entry[]; onSelect: (entry: Entry) => void }) {
+function GroupedEntryList({ entries, onSelect, compact = false }: { entries: Entry[]; onSelect: (entry: Entry) => void; compact?: boolean }) {
   const groups: { label: string; date: string; dayOfWeek: string; entries: Entry[] }[] = [];
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -682,16 +749,19 @@ function GroupedEntryList({ entries, onSelect }: { entries: Entry[]; onSelect: (
         globalIndex += group.entries.length;
 
         return (
-          <div key={group.date} style={{ marginTop: gi > 0 ? 2 : 0 }}>
+          <div key={group.date} style={{ marginTop: gi > 0 ? 4 : 0 }}>
             {/* Date group header */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: 0,
-              padding: '16px 0 6px',
+              padding: isToday ? '20px 0 8px' : '16px 0 6px',
               position: 'relative',
+              borderTop: gi > 0 ? '1px solid var(--border)' : 'none',
+              marginTop: gi > 0 ? 8 : 0,
+              paddingTop: gi > 0 ? 16 : isToday ? 20 : 16,
             }}>
-              {/* Left accent block — aligned with entry strip */}
+              {/* Left accent block */}
               <div style={{
                 width: isToday ? 5 : 3,
                 height: isToday ? 14 : 10,
@@ -704,43 +774,50 @@ function GroupedEntryList({ entries, onSelect }: { entries: Entry[]; onSelect: (
                 transition: 'all 0.2s',
               }} />
 
-              {/* Day of week — short form for context */}
-              {isRecent && !isToday && group.date !== yesterdayStr && (
+              {/* Label + full date */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
                 <span style={{
-                  fontSize: '9px',
+                  fontSize: isToday ? '11px' : '10px',
+                  fontWeight: 700,
                   color: groupAccent,
-                  opacity: 0.35,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.1em',
                   textTransform: 'uppercase',
-                  marginRight: 6,
-                  minWidth: 24,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  whiteSpace: 'nowrap',
                 }}>
-                  {group.dayOfWeek}
+                  {group.label}
                 </span>
-              )}
+                {/* Full date for non-recent entries, day of week for recent */}
+                {isRecent && !isToday && group.date !== yesterdayStr && (
+                  <span style={{
+                    fontSize: '9px',
+                    color: 'var(--text-muted)',
+                    opacity: 0.4,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    {format(parseISO(group.date), 'MMM d')}
+                  </span>
+                )}
+                {!isRecent && (
+                  <span style={{
+                    fontSize: '9px',
+                    color: 'var(--text-muted)',
+                    opacity: 0.4,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    {format(parseISO(group.date), 'EEEE').toLowerCase()}
+                  </span>
+                )}
+              </div>
 
-              {/* Label */}
-              <span style={{
-                fontSize: isToday ? '11px' : '10px',
-                fontWeight: 700,
-                color: groupAccent,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                fontFamily: "'JetBrains Mono', monospace",
-                whiteSpace: 'nowrap',
-              }}>
-                {group.label}
-              </span>
-
-              {/* Scanline separator */}
+              {/* Separator line */}
               <div style={{
                 flex: 1,
                 height: 0,
                 borderTop: isToday
                   ? `1px solid ${groupAccent}`
                   : `1px dashed ${groupAccent}`,
-                opacity: isToday ? 0.3 : 0.15,
+                opacity: isToday ? 0.3 : 0.1,
                 margin: '0 10px',
               }} />
 
@@ -769,7 +846,7 @@ function GroupedEntryList({ entries, onSelect }: { entries: Entry[]; onSelect: (
                   entry={entry}
                   isActive={false}
                   onClick={() => onSelect(entry)}
-                  compact={group.entries.length > 5}
+                  compact={compact || group.entries.length > 5}
                   index={startIdx + ei}
                 />
               ))}

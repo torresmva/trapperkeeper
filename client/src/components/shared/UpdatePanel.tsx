@@ -167,13 +167,14 @@ export function UpdateBadge() {
 // Sys modal — tabbed: about | updates | data backup
 // ═══════════════════════════════════════════════════════════════════
 
-type Tab = 'about' | 'updates' | 'slogans' | 'backup';
+type Tab = 'about' | 'updates' | 'shortcuts' | 'slogans' | 'backup';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'about', label: 'about' },
   { key: 'updates', label: 'updates' },
+  { key: 'shortcuts', label: 'keys' },
   { key: 'slogans', label: 'slogans' },
-  { key: 'backup', label: 'data backup' },
+  { key: 'backup', label: 'backup' },
 ];
 
 function SysModal({ onClose }: { onClose: () => void }) {
@@ -291,6 +292,7 @@ function SysModal({ onClose }: { onClose: () => void }) {
         <div style={{ overflow: 'auto', flex: 1 }}>
           {tab === 'about' && <AboutTab />}
           {tab === 'updates' && <UpdatesTab />}
+          {tab === 'shortcuts' && <ShortcutsTab />}
           {tab === 'slogans' && <SlogansTab />}
           {tab === 'backup' && <BackupTab />}
         </div>
@@ -305,8 +307,12 @@ function SysModal({ onClose }: { onClose: () => void }) {
 
 function AboutTab() {
   const { version, config, fetchConfig } = useUpdate();
+  const [stats, setStats] = useState<any>(null);
 
-  useEffect(() => { fetchConfig(); }, [fetchConfig]);
+  useEffect(() => {
+    fetchConfig();
+    api.getStats().then(setStats).catch(() => {});
+  }, [fetchConfig]);
 
   return (
     <div style={{ padding: '16px 24px 20px' }}>
@@ -318,6 +324,25 @@ function AboutTab() {
         {version?.buildDate && <Row label="built" value={formatDate(version.buildDate)} />}
         <Row label="provider" value={version?.provider || '—'} />
       </div>
+
+      {stats && (
+        <div style={{ marginTop: 20 }}>
+          <SectionLabel>storage</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+            <Row label="total entries" value={String(stats.totalEntries || 0)} />
+            <Row label="journal" value={String(stats.totalJournal || 0)} />
+            <Row label="notes" value={String(stats.totalNotes || 0)} />
+            <Row label="streak" value={`${stats.currentStreak || 0}d current / ${stats.longestStreak || 0}d best`} />
+            <Row label="this week" value={String(stats.thisWeek || 0)} />
+            <Row label="this month" value={String(stats.thisMonth || 0)} />
+          </div>
+          {stats.topTags?.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <Row label="top tags" value={stats.topTags.slice(0, 5).map((t: any) => `#${t.name}`).join('  ')} mono />
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ marginTop: 20 }}>
         <SectionLabel>system</SectionLabel>
@@ -344,6 +369,68 @@ function AboutTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Tab: Keyboard Shortcuts
+// ═══════════════════════════════════════════════════════════════════
+
+const SHORTCUTS: { key: string; action: string; section: string }[] = [
+  { section: 'global', key: 'ctrl+k', action: 'quick capture' },
+  { section: 'global', key: 'ctrl+shift+p', action: 'command palette' },
+  { section: 'global', key: 'esc', action: 'close modal / dialog' },
+  { section: 'editor', key: 'ctrl+p', action: 'full preview' },
+  { section: 'editor', key: '/', action: 'insert menu (in editor)' },
+  { section: 'editor', key: 'ctrl+s', action: 'force save' },
+  { section: 'navigation', key: 'ctrl+shift+p', action: 'command palette (fuzzy search)' },
+  { section: 'entries', key: '≡ / ☰', action: 'toggle compact / full view' },
+  { section: 'entries', key: 'filter...', action: 'inline search in entry list' },
+];
+
+function ShortcutsTab() {
+  const sections = ['global', 'editor', 'navigation', 'entries'];
+
+  return (
+    <div style={{ padding: '16px 24px 20px' }}>
+      {sections.map(section => {
+        const items = SHORTCUTS.filter(s => s.section === section);
+        if (items.length === 0) return null;
+        return (
+          <div key={section} style={{ marginBottom: 16 }}>
+            <SectionLabel>{section}</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+              {items.map((s, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '4px 0',
+                }}>
+                  <span style={{
+                    fontSize: '11px',
+                    color: 'var(--text-secondary)',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    {s.action}
+                  </span>
+                  <kbd style={{
+                    fontSize: '9px',
+                    color: 'var(--accent-primary)',
+                    padding: '2px 6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-surface)',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    {s.key}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -808,6 +895,73 @@ function BackupTab() {
             </div>
           )}
         </>
+      )}
+
+      {/* Danger zone */}
+      <DangerZone />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Danger Zone
+// ═══════════════════════════════════════════════════════════════════
+
+function DangerZone() {
+  const [purging, setPurging] = useState(false);
+  const [purgeResult, setPurgeResult] = useState('');
+  const [confirm, setConfirm] = useState<string | null>(null);
+
+  const handlePurge = async () => {
+    setPurging(true);
+    try {
+      const res = await api.purgeOubliette();
+      setPurgeResult(`purged ${res.purged} items`);
+      setTimeout(() => setPurgeResult(''), 3000);
+    } catch {
+      setPurgeResult('purge failed');
+    }
+    setPurging(false);
+    setConfirm(null);
+  };
+
+  const handleResetSlogans = async () => {
+    try {
+      await api.saveSlogans([]);
+      const { invalidateSlogansCache } = await import('../../hooks/useQuotes');
+      invalidateSlogansCache();
+      setPurgeResult('slogans reset to defaults');
+      setTimeout(() => setPurgeResult(''), 3000);
+    } catch {}
+    setConfirm(null);
+  };
+
+  return (
+    <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+      <SectionLabel>danger zone</SectionLabel>
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        {confirm === 'purge' ? (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: '9px', color: 'var(--danger)' }}>purge all trash?</span>
+            <ActionButton onClick={handlePurge} label={purging ? 'purging...' : 'confirm'} accent />
+            <ActionButton onClick={() => setConfirm(null)} label="cancel" />
+          </div>
+        ) : (
+          <ActionButton onClick={() => setConfirm('purge')} label="purge oubliette" />
+        )}
+
+        {confirm === 'slogans' ? (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: '9px', color: 'var(--danger)' }}>reset slogans?</span>
+            <ActionButton onClick={handleResetSlogans} label="confirm" accent />
+            <ActionButton onClick={() => setConfirm(null)} label="cancel" />
+          </div>
+        ) : (
+          <ActionButton onClick={() => setConfirm('slogans')} label="reset slogans" />
+        )}
+      </div>
+      {purgeResult && (
+        <div style={{ marginTop: 8, fontSize: '9px', color: 'var(--accent-green)' }}>{purgeResult}</div>
       )}
     </div>
   );
